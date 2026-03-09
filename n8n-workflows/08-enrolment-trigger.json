@@ -1,0 +1,74 @@
+{
+  "name": "08 - Enrolment Trigger (Congratulations + Checklist)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "enrolment-trigger",
+        "responseMode": "responseNode"
+      },
+      "id": "trigger-enrolment",
+      "name": "Enrolment Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300],
+      "notes": "Triggered when counsellor changes Lead Status to 'Enrolled' in Google Sheets"
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.phone_number.replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"🎉 *Congratulations{{ $json.student_name ? ', ' + $json.student_name : '' }}!*\\n\\nWelcome to the IIST family! 🏛️\\n\\nHere's your document checklist:\\n✅ JEE Main scorecard\\n✅ 12th marksheet (original + 2 copies)\\n✅ 10th marksheet\\n✅ Aadhar card copy\\n✅ Passport photos (4)\\n✅ Caste certificate (if applicable)\\n✅ Migration certificate\\n\\n📅 Orientation Day: *July 15, 2026* — 9 AM\\n📍 IIST Campus, Bypass Road, Indore\\n\\nSee you soon! 😊 For any queries: admissions@iist.ac.in\"\n  }\n}"
+      },
+      "id": "send-congratulations",
+      "name": "Send Congratulations + Checklist",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.HOD_WHATSAPP_NUMBER.replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"✅ *New Enrolment Confirmed!*\\n\\n👤 {{ $json.student_name || 'Student' }}\\n📞 {{ $json.phone_number }}\\n🎓 Course: {{ $json.course || 'Not specified' }}\\n\\nGreat work! 🎊\"\n  }\n}"
+      },
+      "id": "notify-hod-enrolment",
+      "name": "Notify HOD of Enrolment",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"enrolment_processed\" }"
+      },
+      "id": "respond-enrolment",
+      "name": "Return OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Enrolment Trigger": { "main": [[{ "node": "Send Congratulations + Checklist", "type": "main", "index": 0 }]] },
+    "Send Congratulations + Checklist": { "main": [[{ "node": "Notify HOD of Enrolment", "type": "main", "index": 0 }]] },
+    "Notify HOD of Enrolment": { "main": [[{ "node": "Return OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["admitbot", "phase-4"]
+}

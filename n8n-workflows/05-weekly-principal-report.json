@@ -1,0 +1,64 @@
+{
+  "name": "05 - Weekly Principal Report (Monday 9 AM)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 9 * * 1" }]
+        }
+      },
+      "id": "schedule-monday",
+      "name": "Every Monday at 9 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEETS_ID }}" },
+        "sheetName": { "value": "Leads" },
+        "filters": {}
+      },
+      "id": "get-all-leads",
+      "name": "Get All Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compute this week's summary (last 7 days)\nconst sevenDaysAgo = Date.now() - 7 * 24 * 60 * 60 * 1000;\nconst items = $input.all();\n\nlet total = 0, hot = 0, enrolled = 0;\nconst cityCount = {};\nconst courseCount = {};\nconst sourceCount = {};\n\nfor (const item of items) {\n  const ts = new Date(item.json.Timestamp || 0).getTime();\n  if (ts < sevenDaysAgo) continue;\n  total++;\n  if (item.json['Lead Score'] === 'Hot') hot++;\n  if (String(item.json['Lead Status']).toLowerCase() === 'enrolled') enrolled++;\n  const city = item.json.City || 'Unknown';\n  cityCount[city] = (cityCount[city] || 0) + 1;\n  const course = item.json['Course Interest'] || 'Unknown';\n  courseCount[course] = (courseCount[course] || 0) + 1;\n  const src = item.json['Source Channel'] || 'Other';\n  sourceCount[src] = (sourceCount[src] || 0) + 1;\n}\n\nconst topCities = Object.entries(cityCount).sort(([,a],[,b])=>b-a).slice(0,3).map(([k,v])=>`${k}(${v})`).join(', ');\nconst topCourses = Object.entries(courseCount).sort(([,a],[,b])=>b-a).slice(0,3).map(([k,v])=>`${k}(${v})`).join(', ');\nconst topSources = Object.entries(sourceCount).sort(([,a],[,b])=>b-a).map(([k,v])=>`${k}:${v}`).join(', ');\nconst convRate = total > 0 ? ((enrolled/total)*100).toFixed(1) : '0';\n\nreturn [{ json: { total, hot, enrolled, topCities, topCourses, topSources, convRate } }];"
+      },
+      "id": "compute-weekly",
+      "name": "Compute Weekly Summary",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.PRINCIPAL_WHATSAPP_NUMBER.replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"📋 *IIST AdmitBot — Weekly Report*\\n\\n📥 Total Enquiries: {{ $json.total }}\\n🔥 Hot Leads: {{ $json.hot }}\\n✅ Enrolled: {{ $json.enrolled }}\\n📈 Conversion Rate: {{ $json.convRate }}%\\n\\n🏙️ Top Cities: {{ $json.topCities }}\\n🎓 Top Courses: {{ $json.topCourses }}\\n📡 Sources: {{ $json.topSources }}\\n\\n👉 Dashboard: {{ $env.LOOKER_DASHBOARD_URL }}\"\n  }\n}"
+      },
+      "id": "send-principal-report",
+      "name": "Send Principal Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Every Monday at 9 AM": { "main": [[{ "node": "Get All Leads", "type": "main", "index": 0 }]] },
+    "Get All Leads": { "main": [[{ "node": "Compute Weekly Summary", "type": "main", "index": 0 }]] },
+    "Compute Weekly Summary": { "main": [[{ "node": "Send Principal Report", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["admitbot", "phase-4"]
+}

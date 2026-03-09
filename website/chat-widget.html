@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IIST AdmitBot — Website Chat Widget Demo</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 40px 20px; }
+    .demo-notice {
+      max-width: 700px; margin: 0 auto 30px;
+      background: #fff3cd; border: 1px solid #ffc107; border-radius: 8px;
+      padding: 16px; font-size: 14px; color: #856404;
+    }
+    h1 { text-align: center; color: #1a237e; }
+    p { text-align: center; color: #555; max-width: 600px; margin: 0 auto 30px; }
+  </style>
+</head>
+<body>
+  <h1>IIST Admissions 2026</h1>
+  <p>Welcome to Indore Institute of Science & Technology admissions portal.</p>
+  <div class="demo-notice">
+    <strong>Developer Note:</strong> The Tawk.to chat widget below is embedded using a Property ID.
+    Replace <code>YOUR_TAWKTO_PROPERTY_ID</code> and <code>YOUR_TAWKTO_WIDGET_ID</code>
+    with your actual Tawk.to credentials. Connect the Tawk.to webhook to your n8n instance
+    at <code>https://your-railway-domain/webhook/tawkto</code>.
+  </div>
+
+  <!--
+  ================================================================
+  IIST AdmitBot — Tawk.to Chat Widget Integration
+  ================================================================
+  STEP 1: Create a free account at https://www.tawk.to
+  STEP 2: Create a property for iist.ac.in
+  STEP 3: Copy your Property ID and Widget/Chat ID from the Tawk.to dashboard
+  STEP 4: Replace YOUR_TAWKTO_PROPERTY_ID and YOUR_TAWKTO_WIDGET_ID below
+  STEP 5: Paste this entire script block just before </body> on your admissions page
+  STEP 6: In Tawk.to > Settings > Webhooks, add:
+          - URL: https://your-railway-domain.railway.app/webhook/tawkto
+          - Events: chat:start, chat:message
+  ================================================================
+  -->
+  <script type="text/javascript">
+    var Tawk_API = Tawk_API || {}, Tawk_LoadStart = new Date();
+    (function(){
+      var s1 = document.createElement("script"), s0 = document.getElementsByTagName("script")[0];
+      s1.async = true;
+      s1.src = 'https://embed.tawk.to/YOUR_TAWKTO_PROPERTY_ID/YOUR_TAWKTO_WIDGET_ID';
+      s1.charset = 'UTF-8';
+      s1.setAttribute('crossorigin', '*');
+      s0.parentNode.insertBefore(s1, s0);
+    })();
+
+    // Customise the chat widget appearance
+    Tawk_API.onLoad = function() {
+      Tawk_API.setAttributes({
+        'name': 'IIST Visitor',
+        'email': ''
+      }, function(error) {});
+
+      // Set custom widget text
+      Tawk_API.customize({
+        chatHeader: {
+          title: 'IIST AdmitBot 🎓',
+          subtitle: 'Admission Assistant — Online 24/7'
+        },
+        launcher: {
+          label: 'Ask AdmitBot'
+        }
+      });
+    };
+  </script>
+  <!-- End Tawk.to Widget -->
+</body>
+</html>

@@ -1,0 +1,74 @@
+{
+  "name": "07 - Counsellor Assignment (Round Robin)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "assign-counsellor",
+        "responseMode": "responseNode"
+      },
+      "id": "trigger-assign",
+      "name": "Assignment Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEETS_ID }}" },
+        "sheetName": { "value": "Counsellors" },
+        "filters": {}
+      },
+      "id": "get-counsellors",
+      "name": "Get Counsellors List",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Round-robin: find counsellor with fewest active leads\nconst counsellors = $input.all();\nconst phoneNumber = $('Assignment Trigger').item.json.phone_number;\n\nif (!counsellors.length) {\n  throw new Error('No counsellors in sheet');\n}\n\n// Sort by active_leads ascending\ncounsellors.sort((a, b) => (a.json.Active_Leads || 0) - (b.json.Active_Leads || 0));\nconst assigned = counsellors[0].json;\n\nreturn [{ json: { phone_number: phoneNumber, assigned_to: assigned.Name, assigned_number: assigned.WhatsApp_Number } }];"
+      },
+      "id": "select-counsellor",
+      "name": "Select Least-Loaded Counsellor",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEETS_ID }}" },
+        "sheetName": { "value": "Leads" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Assigned To": "={{ $json.assigned_to }}",
+            "Last Updated": "={{ $now.toISO() }}"
+          }
+        },
+        "matchingColumns": ["Phone Number"]
+      },
+      "id": "update-lead-assignment",
+      "name": "Update Lead Assignment",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'assigned', counsellor: $json.assigned_to }) }}"
+      },
+      "id": "respond-assignment",
+      "name": "Return Assignment",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Assignment Trigger": { "main": [[{ "node": "Get Counsellors List", "type": "main", "index": 0 }]] },
+    "Get Counsellors List": { "main": [[{ "node": "Select Least-Loaded Counsellor", "type": "main", "index": 0 }]] },
+    "Select Least-Loaded Counsellor": { "main": [[{ "node": "Update Lead Assignment", "type": "main", "index": 0 }]] },
+    "Update Lead Assignment": { "main": [[{ "node": "Return Assignment", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["admitbot", "phase-2"]
+}

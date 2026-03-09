@@ -1,0 +1,185 @@
+{
+  "name": "01 - Main Bot (WhatsApp + Website)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "whatsapp",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-wa",
+      "name": "WhatsApp Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "httpMethod": "GET",
+        "path": "whatsapp",
+        "responseMode": "responseNode"
+      },
+      "id": "webhook-wa-verify",
+      "name": "WhatsApp Verify",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 160]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json['hub.challenge'] }}"
+      },
+      "id": "respond-verify",
+      "name": "Return Challenge",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [460, 160]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Extract message from WhatsApp webhook payload\nconst payload = $input.item.json.body || $input.item.json;\nconst entry = payload?.entry?.[0];\nconst change = entry?.changes?.[0]?.value;\nconst messages = change?.messages || [];\nconst contacts = change?.contacts || [];\n\nif (!messages.length) return [];\n\nconst msg = messages[0];\nif (msg.type !== 'text') return [];\n\nconst waId = msg.from;\nconst contact = contacts.find(c => c.wa_id === waId);\n\nreturn [{\n  json: {\n    phone_number: '+' + waId,\n    message_text: msg.text?.body || '',\n    student_name: contact?.profile?.name || '',\n    source_channel: 'WhatsApp',\n    message_id: msg.id,\n    timestamp: msg.timestamp\n  }\n}];"
+      },
+      "id": "extract-message",
+      "name": "Extract Message",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpQueryAuth",
+        "sendQuery": true,
+        "queryParameters": {
+          "parameters": [
+            { "name": "key", "value": "={{ $credentials.key }}" }
+          ]
+        },
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Content-Type", "value": "application/json" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"{{ $json.prompt }}\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.7,\n    \"maxOutputTokens\": 512\n  }\n}"
+      },
+      "id": "gemini-call",
+      "name": "Gemini AI",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Build Gemini prompt with IIST knowledge base\nconst { phone_number, message_text, student_name, source_channel } = $input.item.json;\n\nconst knowledgeBase = `\nIIST Courses: B.Tech CSE (120 seats, ₹85,000/yr, JEE 85%ile), ECE (60 seats, ₹82,000/yr, JEE 70%ile), IT (60 seats, ₹82,000/yr, JEE 75%ile), ME (60 seats, ₹78,000/yr), CE (60 seats, ₹75,000/yr), MBA (60 seats, ₹65,000/yr).\nScholarships: Merit 25% off (95%ile+), SC/ST govt, Girls 10% off, Sports 20% off.\nHostel: Boys ₹45,000/yr, Girls ₹48,000/yr.\nDeadline: June 30 2026. Orientation: July 15 2026.\nPlacement: Avg ₹6.2LPA, Highest ₹18LPA (Microsoft). 92% CSE placed.\nApply: iist.ac.in/apply | admissions@iist.ac.in | +91-731-XXXXXXX\n`;\n\nconst prompt = `You are AdmitBot, IIST admission assistant. Reply in the SAME language as student (Hindi/Hinglish/English). Max 3-4 lines. 1-2 emojis. Never say 'I don't know' - redirect to counsellor.\n\nKnowledge Base:\n${knowledgeBase}\n\nStudent (${phone_number}) asks: ${message_text}\n\nAfter your reply, add JSON block:\n\\`\\`\\`json\n{\"intent_score\":\"Hot|Warm|Cold\",\"extracted_data\":{\"name\":null,\"city\":null,\"course_interest\":null,\"jee_percentile\":null,\"phone\":null},\"needs_escalation\":false}\n\\`\\`\\``;\n\nreturn [{ json: { ...($input.item.json), prompt } }];"
+      },
+      "id": "build-prompt",
+      "name": "Build Gemini Prompt",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Parse Gemini response and extract reply + structured data\nconst rawText = $input.item.json.candidates?.[0]?.content?.parts?.[0]?.text || '';\n\nconst jsonMatch = rawText.match(/```json\\s*([\\s\\S]*?)\\s*```/);\nlet structured = {};\nlet replyText = rawText.trim();\n\nif (jsonMatch) {\n  try { structured = JSON.parse(jsonMatch[1]); } catch(e) {}\n  replyText = rawText.substring(0, jsonMatch.index).trim();\n}\n\nconst prev = $node['Extract Message'].json;\n\nreturn [{\n  json: {\n    phone_number: prev.phone_number,\n    student_name: prev.student_name || structured.extracted_data?.name || '',\n    source_channel: prev.source_channel,\n    message_text: prev.message_text,\n    reply_text: replyText,\n    intent_score: structured.intent_score || 'Cold',\n    extracted_data: structured.extracted_data || {},\n    needs_escalation: structured.needs_escalation || false\n  }\n}];"
+      },
+      "id": "parse-response",
+      "name": "Parse Gemini Response",
+      "type": "n8n-nodes-base.code",
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.phone_number.replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": { \"body\": \"{{ $json.reply_text }}\" }\n}"
+      },
+      "id": "send-reply",
+      "name": "Send WhatsApp Reply",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "operation": "appendOrUpdate",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEETS_ID }}" },
+        "sheetName": { "value": "Leads" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Timestamp": "={{ $now.toISO() }}",
+            "Student Name": "={{ $json.student_name }}",
+            "Phone Number": "={{ $json.phone_number }}",
+            "City": "={{ $json.extracted_data.city || '' }}",
+            "Course Interest": "={{ $json.extracted_data.course_interest || '' }}",
+            "JEE / 12th Score": "={{ $json.extracted_data.jee_percentile || '' }}",
+            "Source Channel": "={{ $json.source_channel }}",
+            "Lead Score": "={{ $json.intent_score }}",
+            "Assigned To": "",
+            "Lead Status": "New",
+            "Notes": "",
+            "Last Updated": "={{ $now.toISO() }}",
+            "Conversation History": "=Student: {{ $json.message_text }}\nBot: {{ $json.reply_text }}"
+          }
+        },
+        "matchingColumns": ["Phone Number"]
+      },
+      "id": "save-lead",
+      "name": "Save Lead to Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [1340, 360]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": { "caseSensitive": false },
+          "conditions": [
+            {
+              "leftValue": "={{ $json.intent_score }}",
+              "rightValue": "Hot",
+              "operator": { "type": "string", "operation": "equals" }
+            }
+          ]
+        }
+      },
+      "id": "if-hot-lead",
+      "name": "Is Hot Lead?",
+      "type": "n8n-nodes-base.if",
+      "position": [1560, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"ok\" }"
+      },
+      "id": "respond-ok",
+      "name": "Return OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1340, 500]
+    }
+  ],
+  "connections": {
+    "WhatsApp Verify": { "main": [[{ "node": "Return Challenge", "type": "main", "index": 0 }]] },
+    "WhatsApp Webhook": { "main": [[{ "node": "Extract Message", "type": "main", "index": 0 }]] },
+    "Extract Message": { "main": [[{ "node": "Build Gemini Prompt", "type": "main", "index": 0 }]] },
+    "Build Gemini Prompt": { "main": [[{ "node": "Gemini AI", "type": "main", "index": 0 }]] },
+    "Gemini AI": { "main": [[{ "node": "Parse Gemini Response", "type": "main", "index": 0 }]] },
+    "Parse Gemini Response": {
+      "main": [[
+        { "node": "Send WhatsApp Reply", "type": "main", "index": 0 },
+        { "node": "Save Lead to Sheets", "type": "main", "index": 0 },
+        { "node": "Is Hot Lead?", "type": "main", "index": 0 },
+        { "node": "Return OK", "type": "main", "index": 0 }
+      ]]
+    }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["admitbot", "phase-1"]
+}

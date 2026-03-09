@@ -1,0 +1,64 @@
+{
+  "name": "04 - Daily HOD Report (8 AM)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 8 * * *" }]
+        }
+      },
+      "id": "schedule-8am",
+      "name": "Every Day at 8 AM",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEETS_ID }}" },
+        "sheetName": { "value": "Leads" },
+        "filters": {}
+      },
+      "id": "get-leads",
+      "name": "Get All Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Compute today's summary from Google Sheets data\nconst today = new Date().toISOString().split('T')[0];\nconst items = $input.all();\n\nlet total = 0, hot = 0, warm = 0, cold = 0, enrolled = 0;\nconst sources = {};\n\nfor (const item of items) {\n  const ts = String(item.json.Timestamp || '');\n  if (!ts.startsWith(today)) continue;\n  total++;\n  const score = String(item.json['Lead Score'] || '').trim();\n  if (score === 'Hot') hot++;\n  else if (score === 'Warm') warm++;\n  else cold++;\n  if (String(item.json['Lead Status']).toLowerCase() === 'enrolled') enrolled++;\n  const src = String(item.json['Source Channel'] || 'Other');\n  sources[src] = (sources[src] || 0) + 1;\n}\n\nconst srcSummary = Object.entries(sources).map(([k,v]) => `${k}: ${v}`).join(', ');\n\nreturn [{\n  json: { total, hot, warm, cold, enrolled, sources_summary: srcSummary, date: today }\n}];"
+      },
+      "id": "compute-summary",
+      "name": "Compute Daily Summary",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $env.HOD_WHATSAPP_NUMBER.replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"📊 *IIST AdmitBot — Daily Report*\\n📅 {{ $json.date }}\\n\\n📥 Total Enquiries: {{ $json.total }}\\n🔥 Hot Leads: {{ $json.hot }}\\n🟡 Warm Leads: {{ $json.warm }}\\n🔵 Cold Leads: {{ $json.cold }}\\n✅ Enrolled Today: {{ $json.enrolled }}\\n\\n📡 Sources: {{ $json.sources_summary }}\\n\\n👉 Full dashboard: {{ $env.LOOKER_DASHBOARD_URL }}\"\n  }\n}"
+      },
+      "id": "send-hod-report",
+      "name": "Send HOD Report",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Every Day at 8 AM": { "main": [[{ "node": "Get All Leads", "type": "main", "index": 0 }]] },
+    "Get All Leads": { "main": [[{ "node": "Compute Daily Summary", "type": "main", "index": 0 }]] },
+    "Compute Daily Summary": { "main": [[{ "node": "Send HOD Report", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["admitbot", "phase-4"]
+}

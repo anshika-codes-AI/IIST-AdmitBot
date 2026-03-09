@@ -1,0 +1,82 @@
+{
+  "name": "02 - Hot Lead Counsellor Alert",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "hot-lead-alert",
+        "responseMode": "responseNode"
+      },
+      "id": "trigger-hot",
+      "name": "Hot Lead Trigger",
+      "type": "n8n-nodes-base.webhook",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Round-robin counsellor assignment\nconst counsellors = ($env.COUNSELLOR_NUMBERS || '').split(',').map(n => n.trim()).filter(Boolean);\nif (!counsellors.length) throw new Error('No counsellors configured');\n\n// Simple round-robin using current minute as seed\nconst idx = Math.floor(Date.now() / 60000) % counsellors.length;\nconst assigned = counsellors[idx];\n\nreturn [{ json: { ...$input.item.json, assigned_counsellor: assigned } }];"
+      },
+      "id": "assign-counsellor",
+      "name": "Assign Counsellor (Round Robin)",
+      "type": "n8n-nodes-base.code",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.assigned_counsellor.replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"🔥 *HOT LEAD ALERT — IIST AdmitBot*\\n\\n👤 Name: {{ $json.student_name || 'Unknown' }}\\n📞 Phone: {{ $json.phone_number }}\\n🏙️ City: {{ $json.city || 'Unknown' }}\\n🎓 Course: {{ $json.course_interest || 'Unknown' }}\\n\\nPlease contact within 30 minutes. Full history in Google Sheets. 📊\"\n  }\n}"
+      },
+      "id": "alert-counsellor",
+      "name": "Send Alert to Counsellor",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "operation": "update",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEETS_ID }}" },
+        "sheetName": { "value": "Leads" },
+        "columns": {
+          "mappingMode": "defineBelow",
+          "value": {
+            "Assigned To": "={{ $json.assigned_counsellor }}",
+            "Last Updated": "={{ $now.toISO() }}"
+          }
+        },
+        "matchingColumns": ["Phone Number"]
+      },
+      "id": "update-assignment",
+      "name": "Update Assignment in Sheets",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={ \"status\": \"alert_sent\" }"
+      },
+      "id": "respond-alert",
+      "name": "Return OK",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Hot Lead Trigger": { "main": [[{ "node": "Assign Counsellor (Round Robin)", "type": "main", "index": 0 }]] },
+    "Assign Counsellor (Round Robin)": { "main": [[{ "node": "Send Alert to Counsellor", "type": "main", "index": 0 }]] },
+    "Send Alert to Counsellor": { "main": [[{ "node": "Update Assignment in Sheets", "type": "main", "index": 0 }]] },
+    "Update Assignment in Sheets": { "main": [[{ "node": "Return OK", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["admitbot", "phase-2"]
+}

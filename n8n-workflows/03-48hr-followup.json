@@ -1,0 +1,64 @@
+{
+  "name": "03 - 48-Hour Follow-up",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "hours", "minutesInterval": 60 }]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Hourly Schedule",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEETS_ID }}" },
+        "sheetName": { "value": "Leads" },
+        "filters": {}
+      },
+      "id": "get-all-leads",
+      "name": "Get All Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter leads that have been silent for 48 hours and are Warm or Hot\nconst now = Date.now();\nconst fortyEightHours = 48 * 60 * 60 * 1000;\nconst items = $input.all();\n\nconst staleLeads = items.filter(item => {\n  const { Lead_Status, Last_Updated, Phone_Number, Lead_Score } = item.json;\n  if (!Last_Updated || !Phone_Number) return false;\n  if (Lead_Status === 'Enrolled' || Lead_Status === 'Lost') return false;\n  if (!['Hot', 'Warm'].includes(Lead_Score)) return false;\n  const lastUpdate = new Date(Last_Updated).getTime();\n  const ageMs = now - lastUpdate;\n  return ageMs >= fortyEightHours && ageMs < (fortyEightHours + 3600000);\n});\n\nreturn staleLeads;"
+      },
+      "id": "filter-stale",
+      "name": "Filter 48-Hour Silent Leads",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.Phone_Number.replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"Hi{{ $json.Student_Name ? ' ' + $json.Student_Name : '' }}! 👋 This is AdmitBot from IIST.\\n\\nWe noticed you enquired about admissions recently. Seats are filling up fast! 🎓\\n\\nApplication deadline: *June 30, 2026*\\n\\nWould you like to know more or speak with a counsellor? Just reply! 😊\"\n  }\n}"
+      },
+      "id": "send-followup",
+      "name": "Send Follow-up Message",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "Hourly Schedule": { "main": [[{ "node": "Get All Leads", "type": "main", "index": 0 }]] },
+    "Get All Leads": { "main": [[{ "node": "Filter 48-Hour Silent Leads", "type": "main", "index": 0 }]] },
+    "Filter 48-Hour Silent Leads": { "main": [[{ "node": "Send Follow-up Message", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["admitbot", "phase-2"]
+}

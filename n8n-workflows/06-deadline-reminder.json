@@ -1,0 +1,64 @@
+{
+  "name": "06 - Deadline Reminder (June 23)",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [{ "field": "cronExpression", "expression": "0 10 23 6 *" }]
+        }
+      },
+      "id": "schedule-june23",
+      "name": "June 23 at 10 AM (7 days before deadline)",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "documentId": { "value": "={{ $env.GOOGLE_SHEETS_ID }}" },
+        "sheetName": { "value": "Leads" },
+        "filters": {}
+      },
+      "id": "get-warm-leads",
+      "name": "Get All Leads",
+      "type": "n8n-nodes-base.googleSheets",
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Filter Warm leads who haven't enrolled\nconst items = $input.all();\nreturn items.filter(item => {\n  const score = item.json['Lead Score'];\n  const status = item.json['Lead Status'];\n  return score === 'Warm' && status !== 'Enrolled' && status !== 'Lost' && item.json['Phone Number'];\n});"
+      },
+      "id": "filter-warm",
+      "name": "Filter Warm Leads",
+      "type": "n8n-nodes-base.code",
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "=https://graph.facebook.com/v19.0/{{ $env.WHATSAPP_PHONE_NUMBER_ID }}/messages",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.WHATSAPP_ACCESS_TOKEN }}" }
+          ]
+        },
+        "sendBody": true,
+        "contentType": "json",
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone Number'].replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"⏰ *Admission Closing Soon — IIST Indore*\\n\\nHi{{ $json['Student Name'] ? ' ' + $json['Student Name'] : '' }}! Only *7 days left* to apply for B.Tech 2026! 🎓\\n\\n📅 Last date: *June 30, 2026*\\n🏫 Courses: CSE, ECE, IT, ME, Civil, MBA\\n💡 Scholarships available!\\n\\n👉 Apply now: iist.ac.in/apply\\nOr reply to this message — we'll help you! 😊\"\n  }\n}"
+      },
+      "id": "send-deadline-reminder",
+      "name": "Send Deadline Reminder",
+      "type": "n8n-nodes-base.httpRequest",
+      "position": [900, 300]
+    }
+  ],
+  "connections": {
+    "June 23 at 10 AM (7 days before deadline)": { "main": [[{ "node": "Get All Leads", "type": "main", "index": 0 }]] },
+    "Get All Leads": { "main": [[{ "node": "Filter Warm Leads", "type": "main", "index": 0 }]] },
+    "Filter Warm Leads": { "main": [[{ "node": "Send Deadline Reminder", "type": "main", "index": 0 }]] }
+  },
+  "settings": { "executionOrder": "v1" },
+  "tags": ["admitbot", "phase-4"]
+}
