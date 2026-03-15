@@ -2,9 +2,9 @@
 
 > 24/7 AI-powered bilingual admission chatbot and lead management system for **Indore Institute of Science & Technology (IIST)**, built entirely on free tools.
 
-[![Tests](https://img.shields.io/badge/tests-54%20passing-brightgreen)](#running-tests)
-[![Python](https://img.shields.io/badge/python-3.12-blue)](https://python.org)
-[![FastAPI](https://img.shields.io/badge/FastAPI-0.110-green)](https://fastapi.tiangolo.com)
+[![Tests](https://img.shields.io/badge/tests-91%20passing-brightgreen)](#running-tests)
+[![Python](https://img.shields.io/badge/python-3.13-blue)](https://python.org)
+[![FastAPI](https://img.shields.io/badge/FastAPI-0.115-green)](https://fastapi.tiangolo.com)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow)](LICENSE)
 
 ---
@@ -61,19 +61,34 @@ Google     Counsellor
 Sheets     WhatsApp Alert
     │
     ▼
+ n8n Scheduled Automations
+ (reports, reminders, follow-ups)
+    │
+    ▼
 Looker Studio Dashboard
 (HOD / Principal)
 ```
 
 **Data flow:**
 1. Student sends WhatsApp/website message
-2. Meta API / Tawk.to forwards to n8n webhook instantly
-3. n8n packages message with IIST knowledge base → Gemini AI
+2. Meta API / Tawk.to forwards webhook to FastAPI backend
+3. FastAPI builds prompt with IIST knowledge base and calls Gemini AI
 4. Gemini generates bilingual reply + structured lead data
-5. n8n sends reply to student (<12 seconds end-to-end)
+5. FastAPI sends reply to student (<12 seconds end-to-end)
 6. Lead written to Google Sheets (with duplicate detection)
-7. If Hot lead → counsellor WhatsApp alert sent immediately
-8. Looker Studio reads Google Sheets → dashboard updates live
+7. If Hot lead → backend sends counsellor WhatsApp alert immediately
+8. n8n runs scheduled automations (follow-ups/reports/reminders)
+9. Looker Studio reads Google Sheets → dashboard updates live
+
+---
+
+## Architecture Mode
+
+This repository is configured for **Backend-First** operation.
+
+- FastAPI is the single real-time processing engine for incoming messages.
+- n8n is used for scheduled and operational workflows only.
+- Do **not** run `01-main-bot` and `02-hot-lead-alert` in production with backend webhooks, or you may process the same lead twice.
 
 ---
 
@@ -100,7 +115,7 @@ Looker Studio Dashboard
 │   ├── app.py                    # FastAPI application (webhooks)
 │   ├── config.py                 # Settings from environment variables
 │   ├── chatbot/
-│   │   ├── gemini_client.py      # Google Gemini AI integration
+│   │   ├── ai_client.py          # Multi-provider AI client (Groq/OpenAI/Gemini + fallback)
 │   │   ├── knowledge_base.py     # IIST course/fee/FAQ content
 │   │   ├── language_detector.py  # Hindi/Hinglish/English detection
 │   │   └── lead_scorer.py        # Hot/Warm/Cold scoring logic
@@ -208,13 +223,13 @@ Import JSON files from `n8n-workflows/` into your n8n instance:
 
 | Workflow | Trigger | Phase |
 |---|---|---|
-| `01-main-bot` | WhatsApp/website message | 1 |
-| `02-hot-lead-alert` | Lead scored Hot | 2 |
+| `01-main-bot` | WhatsApp/website message | Legacy (keep disabled in backend-first mode) |
+| `02-hot-lead-alert` | Lead scored Hot | Legacy (keep disabled in backend-first mode) |
 | `03-48hr-followup` | 48 hrs silence | 2 |
 | `04-daily-hod-report` | Every day 8 AM | 4 |
 | `05-weekly-principal-report` | Every Monday 9 AM | 4 |
 | `06-deadline-reminder` | June 23 (7 days before) | 4 |
-| `07-counsellor-assignment` | New hot lead | 2 |
+| `07-counsellor-assignment` | New hot lead | Optional (only if assignment moved from backend to n8n) |
 | `08-enrolment-trigger` | Status → Enrolled | 4 |
 
 **Import steps:** n8n → Workflows → Import → select JSON file → Save → Activate

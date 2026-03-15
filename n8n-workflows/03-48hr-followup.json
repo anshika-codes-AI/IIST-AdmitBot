@@ -26,7 +26,7 @@
     },
     {
       "parameters": {
-        "jsCode": "// Filter leads that have been silent for 48 hours and are Warm or Hot\nconst now = Date.now();\nconst fortyEightHours = 48 * 60 * 60 * 1000;\nconst items = $input.all();\n\nconst staleLeads = items.filter(item => {\n  const { Lead_Status, Last_Updated, Phone_Number, Lead_Score } = item.json;\n  if (!Last_Updated || !Phone_Number) return false;\n  if (Lead_Status === 'Enrolled' || Lead_Status === 'Lost') return false;\n  if (!['Hot', 'Warm'].includes(Lead_Score)) return false;\n  const lastUpdate = new Date(Last_Updated).getTime();\n  const ageMs = now - lastUpdate;\n  return ageMs >= fortyEightHours && ageMs < (fortyEightHours + 3600000);\n});\n\nreturn staleLeads;"
+        "jsCode": "// Filter leads that have been silent for 48 hours and are Warm or Hot\nconst now = Date.now();\nconst fortyEightHours = 48 * 60 * 60 * 1000;\nconst items = $input.all();\n\nconst staleLeads = items.filter(item => {\n  const leadStatus = item.json['Lead Status'];\n  const lastUpdated = item.json['Last Updated'];\n  const phoneNumber = item.json['Phone Number'];\n  const leadScore = item.json['Lead Score'];\n\n  if (!lastUpdated || !phoneNumber) return false;\n  if (leadStatus === 'Enrolled' || leadStatus === 'Lost') return false;\n  if (!['Hot', 'Warm'].includes(leadScore)) return false;\n\n  const lastUpdateTs = new Date(lastUpdated).getTime();\n  const ageMs = now - lastUpdateTs;\n  return ageMs >= fortyEightHours && ageMs < (fortyEightHours + 3600000);\n});\n\nreturn staleLeads;"
       },
       "id": "filter-stale",
       "name": "Filter 48-Hour Silent Leads",
@@ -46,7 +46,7 @@
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json.Phone_Number.replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"Hi{{ $json.Student_Name ? ' ' + $json.Student_Name : '' }}! 👋 This is AdmitBot from IIST.\\n\\nWe noticed you enquired about admissions recently. Seats are filling up fast! 🎓\\n\\nApplication deadline: *June 30, 2026*\\n\\nWould you like to know more or speak with a counsellor? Just reply! 😊\"\n  }\n}"
+        "body": "={\n  \"messaging_product\": \"whatsapp\",\n  \"to\": \"{{ $json['Phone Number'].replace('+','') }}\",\n  \"type\": \"text\",\n  \"text\": {\n    \"body\": \"Hi{{ $json['Student Name'] ? ' ' + $json['Student Name'] : '' }}! 👋 This is AdmitBot from IIST.\\n\\nWe noticed you enquired about admissions recently. Seats are filling up fast! 🎓\\n\\nApplication deadline: *June 30, 2026*\\n\\nWould you like to know more or speak with a counsellor? Just reply! 😊\"\n  }\n}"
       },
       "id": "send-followup",
       "name": "Send Follow-up Message",

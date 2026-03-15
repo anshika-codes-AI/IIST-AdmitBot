@@ -1,0 +1,126 @@
+IIST ADMISSIONS KNOWLEDGE DOCUMENT
+Version: 2026-03-13
+Owner: Admissions Team (Review required before each cycle)
+
+SECTION 1: OFFICIAL INSTITUTE IDENTITY
+Institution Name: Indore Institute of Science and Technology (IIST)
+Institute Group Site: https://indoreinstitute.com/
+Official Admissions Portal: https://admission.indoreinstitute.com/
+Address: Opposite Indian Institute of Management, Rau - Pithampur Road, Rau, Indore, Madhya Pradesh 453331
+Contact Email: admissions@indoreinstitute.com
+Toll Free: 1800 103 3069
+Phone Numbers: 8225071000, 8224071000, 8225072000
+
+SECTION 2: OFFICIAL ADMISSION STATUS
+Admission Cycle Mentioned on Portal: Admissions Open For 2025-26
+Application Mode: Online (Apply Now on official admissions portal)
+
+SECTION 3: OFFICIAL PROGRAMS OFFERED (IIST)
+Undergraduate Programs (B.Tech):
+1. Civil Engineering with Computer Application (CECA)
+2. Electronics and Computer Science (ECS)
+3. Robotics and Artificial Intelligence (RAI)
+4. Computer Science and Engineering - Data Science (CSE-DS)
+5. Artificial Intelligence and Machine Learning (AIML)
+6. Computer Science and Engineering (CSE)
+7. Information Technology (IT)
+8. Electronics and Communication Engineering (ECE)
+9. Mechanical Engineering (ME)
+10. Civil Engineering (CE)
+
+Postgraduate Programs (M.E. / M.Tech):
+1. Computer Science and Engineering (CSE)
+2. Artificial Intelligence and Machine Learning (AIML)
+3. Data Science (DS)
+
+SECTION 4: ADMISSION ROUTE (SECONDARY SOURCES, VERIFY EACH YEAR)
+Source Type: Aggregator pages (Collegedunia / Shiksha)
+Reported B.Tech route: JEE Main score followed by MP DTE counselling
+Reported alternate rounds in counselling: JEE-based round and board-marks based rounds (seat vacancy dependent)
+Reported baseline eligibility for B.Tech: 10+2 with Physics, Chemistry, Mathematics and minimum 45 percent
+
+SECTION 5: REPORTED FEES / INTAKE (SECONDARY, CONFLICTING)
+Important Rule for Bot: Never claim one exact fee as final unless the official portal or latest official fee circular confirms it.
+
+Examples captured from secondary sources:
+- Shiksha page for B.Tech CSE (Data Science): Tuition approx INR 1.42 lakh (program total), hostel approx INR 1.20 lakh, total approx INR 2.62 lakh, seat info shown as 68 and seat breakup shown as 60 in different blocks.
+- Collegedunia pages show different aggregate fee figures for B.Tech variants (for example total around INR 2.48 lakh on some cards).
+
+Interpretation:
+- Fee and seat values vary by source snapshot and may include/exclude components.
+- Bot should provide a range or explicitly state "exact fee shared by admissions office" and handoff to counsellor.
+
+SECTION 6: REPORTED CUTOFFS (SECONDARY, HISTORICAL)
+Source Type: Collegedunia
+Reported JEE Main closing rank band (General, historical 2024 rounds shown): roughly 491063 to 1404669 across branches.
+Examples shown:
+- B.Tech CSE: 491063 (Round 1), 313415 (Round 2 shown)
+- B.Tech AI and ML: 708543 (Round 1), 485429 (Round 2)
+- B.Tech ECE: 939576 (Round 1), 1287698 (Round 2)
+- B.Tech Mechanical: 1206557 (Round 1), 1391505 (Round 2)
+- B.Tech Civil: 1404669 (Round 1), 679073 (Round 2)
+
+Use policy:
+- Present these only as past trend indicators.
+- Always add: "Current year cutoffs depend on counselling rounds and seat availability."
+
+SECTION 7: SCHOLARSHIP / CONCESSION SIGNALS
+Official admissions portal states:
+- Merit-based fee concessions on JEE and 12th marks.
+
+Secondary source signals:
+- Scholarship availability is reported, but exact slabs are not consistently published in one place.
+
+Bot behavior:
+- Mention scholarship availability.
+- Ask for JEE percentile / 12th marks and connect to counsellor for exact concession slab.
+
+SECTION 8: PLACEMENT CLAIMS (HANDLE CAREFULLY)
+Official admissions portal promotional claims include:
+- "Highest package 44 LPA"
+- "100 percent placement assistance"
+
+Public profile examples displayed include multiple high CTC records (for example 40 LPA, 24.7 LPA, 15 LPA and others).
+
+Bot policy:
+- Prefer wording "placement assistance" over "100 percent placement guaranteed".
+- For official verified latest report, offer counsellor callback.
+
+SECTION 9: DOCUMENT REQUIREMENTS
+Official source link on institute site:
+- Important Documents For Admission (2025-2026):
+  https://indoreinstitute.com/wp-content/uploads/2025/07/Student-Document-for-admission-1.pdf
+
+Bot policy:
+- Share this official document link first.
+- If user asks quick checklist, provide standard likely list but mark "confirm with latest official PDF".
+
+SECTION 10: BOT RESPONSE RULES (STRICT)
+1. Use official domain details first (indoreinstitute.com and admission.indoreinstitute.com).
+2. Treat aggregator values as reference only.
+3. Do not fabricate exact fee, cutoff, dates, or seat numbers.
+4. If user requests exact and current values, set needs_escalation=true and offer counsellor handoff.
+5. Keep replies concise and mobile friendly.
+
+SECTION 11: QUICK RESPONSE TEMPLATES
+Template A (Fees):
+"Branch-wise fee can vary by year and components. I can share the latest official fee through our admissions team. Please share your branch and phone number for exact breakup."
+
+Template B (Eligibility):
+"For B.Tech, admission is generally through JEE Main and MP DTE counselling, with PCM in 12th. For exact current criteria and cutoff, I can connect you with admissions support."
+
+Template C (Documents):
+"Please refer to the official document checklist here: https://indoreinstitute.com/wp-content/uploads/2025/07/Student-Document-for-admission-1.pdf. I can also help you with a quick checklist branch-wise."
+
+SECTION 12: SOURCES USED FOR THIS VERSION
+Official:
+1. https://indoreinstitute.com/
+2. https://admission.indoreinstitute.com/
+
+Secondary:
+3. https://collegedunia.com/college/13806-indore-institute-of-science-and-technology-iist-indore/admission
+4. https://www.shiksha.com/college/indore-institute-of-science-and-technology-46989/course-b-tech-in-computer-science-and-engineering-data-science-1108741
+
+Fetch unavailable in this run:
+5. https://bookmycolleges.com/article/IIST-Indore-Courses-Admission-Application-Process-Placements
+Reason: content could not be retrieved through tool pipeline (skipped/unavailable).

@@ -21,8 +21,8 @@
   <div class="demo-notice">
     <strong>Developer Note:</strong> The Tawk.to chat widget below is embedded using a Property ID.
     Replace <code>YOUR_TAWKTO_PROPERTY_ID</code> and <code>YOUR_TAWKTO_WIDGET_ID</code>
-    with your actual Tawk.to credentials. Connect the Tawk.to webhook to your n8n instance
-    at <code>https://your-railway-domain/webhook/tawkto</code>.
+    with your actual Tawk.to credentials. Connect the Tawk.to webhook to your backend
+    at <code>https://your-backend-domain/webhook/tawkto</code>.
   </div>
 
   <!--
@@ -34,8 +34,8 @@
   STEP 3: Copy your Property ID and Widget/Chat ID from the Tawk.to dashboard
   STEP 4: Replace YOUR_TAWKTO_PROPERTY_ID and YOUR_TAWKTO_WIDGET_ID below
   STEP 5: Paste this entire script block just before </body> on your admissions page
-  STEP 6: In Tawk.to > Settings > Webhooks, add:
-          - URL: https://your-railway-domain.railway.app/webhook/tawkto
+    STEP 6: In Tawk.to > Settings > Webhooks, add:
+      - URL: https://your-backend-domain/webhook/tawkto
           - Events: chat:start, chat:message
   ================================================================
   -->

@@ -1,0 +1,136 @@
+{
+  "meta": {
+    "document_version": "2026-03-13",
+    "institution": "Indore Institute of Science and Technology (IIST)",
+    "owner": "Admissions Team",
+    "review_required_before_cycle": true
+  },
+  "official_identity": {
+    "website": "https://indoreinstitute.com/",
+    "admissions_portal": "https://admission.indoreinstitute.com/",
+    "address": "Opposite Indian Institute of Management, Rau - Pithampur Road, Rau, Indore, Madhya Pradesh 453331",
+    "email": "admissions@indoreinstitute.com",
+    "phones": [
+      "1800 103 3069",
+      "8225071000",
+      "8224071000",
+      "8225072000"
+    ]
+  },
+  "admission_cycle": {
+    "portal_status_text": "Admissions Open For 2025-26",
+    "application_mode": "Online"
+  },
+  "programs": {
+    "btech": [
+      "Civil Engineering with Computer Application",
+      "Electronics and Computer Science",
+      "Robotics and Artificial Intelligence",
+      "Computer Science and Engineering - Data Science",
+      "Artificial Intelligence and Machine Learning",
+      "Computer Science and Engineering",
+      "Information Technology",
+      "Electronics and Communication Engineering",
+      "Mechanical Engineering",
+      "Civil Engineering"
+    ],
+    "me_mtech": [
+      "Computer Science and Engineering",
+      "Artificial Intelligence and Machine Learning",
+      "Data Science"
+    ]
+  },
+  "admission_route": {
+    "btech_reported_route": "JEE Main followed by MP DTE counselling",
+    "reported_minimum_eligibility": "10+2 with PCM and at least 45 percent",
+    "verification_status": "secondary_source"
+  },
+  "fees_and_seats": {
+    "policy": "Do not claim one exact fee or seat count unless official source confirms current year values.",
+    "observations": [
+      {
+        "source": "Shiksha",
+        "program": "B.Tech CSE Data Science",
+        "tuition_total": "INR 1.42 lakh",
+        "hostel_total": "INR 1.20 lakh",
+        "overall_total": "INR 2.62 lakh",
+        "seat_mentions": [
+          "68",
+          "60"
+        ],
+        "verification_status": "secondary_source_conflicting"
+      },
+      {
+        "source": "Collegedunia",
+        "program": "B.Tech variants",
+        "tuition_observation": "Some cards show around INR 2.48 lakh total for selected programs",
+        "verification_status": "secondary_source"
+      }
+    ]
+  },
+  "cutoff_trends": {
+    "source": "Collegedunia",
+    "jee_main_general_rank_band_reported": "491063 to 1404669",
+    "examples": [
+      {
+        "program": "B.Tech CSE",
+        "round1": "491063",
+        "round2": "313415"
+      },
+      {
+        "program": "B.Tech AI and ML",
+        "round1": "708543",
+        "round2": "485429"
+      },
+      {
+        "program": "B.Tech ECE",
+        "round1": "939576",
+        "round2": "1287698"
+      },
+      {
+        "program": "B.Tech Mechanical",
+        "round1": "1206557",
+        "round2": "1391505"
+      },
+      {
+        "program": "B.Tech Civil",
+        "round1": "1404669",
+        "round2": "679073"
+      }
+    ],
+    "use_as": "historical_reference_only"
+  },
+  "scholarship_signals": {
+    "official_claim": "Merit-based fee concessions on JEE and 12th marks",
+    "exact_slab_available": false
+  },
+  "placements": {
+    "official_portal_claims": [
+      "Highest package 44 LPA",
+      "100 percent placement assistance"
+    ],
+    "bot_wording_policy": "Prefer 'placement assistance' wording; avoid guaranteed placement phrasing."
+  },
+  "documents": {
+    "official_pdf": "https://indoreinstitute.com/wp-content/uploads/2025/07/Student-Document-for-admission-1.pdf"
+  },
+  "bot_rules": [
+    "Use official domain information first.",
+    "Treat third-party values as reference only.",
+    "Do not fabricate exact fee, cutoff, dates, or seats.",
+    "Escalate to counsellor when user asks for exact current values."
+  ],
+  "sources": {
+    "official": [
+      "https://indoreinstitute.com/",
+      "https://admission.indoreinstitute.com/"
+    ],
+    "secondary": [
+      "https://collegedunia.com/college/13806-indore-institute-of-science-and-technology-iist-indore/admission",
+      "https://www.shiksha.com/college/indore-institute-of-science-and-technology-46989/course-b-tech-in-computer-science-and-engineering-data-science-1108741"
+    ],
+    "unavailable_in_fetch": [
+      "https://bookmycolleges.com/article/IIST-Indore-Courses-Admission-Application-Process-Placements"
+    ]
+  }
+}
