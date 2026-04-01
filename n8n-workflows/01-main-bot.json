@@ -44,45 +44,40 @@
     },
     {
       "parameters": {
-        "url": "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent",
+        "url": "https://api.groq.com/openai/v1/chat/completions",
         "authentication": "genericCredentialType",
-        "genericAuthType": "httpQueryAuth",
-        "sendQuery": true,
-        "queryParameters": {
-          "parameters": [
-            { "name": "key", "value": "={{ $credentials.key }}" }
-          ]
-        },
+        "genericAuthType": "httpHeaderAuth",
         "sendHeaders": true,
         "headerParameters": {
           "parameters": [
+            { "name": "Authorization", "value": "=Bearer {{ $env.GROQ_API_KEY }}" },
             { "name": "Content-Type", "value": "application/json" }
           ]
         },
         "sendBody": true,
         "contentType": "json",
-        "body": "={\n  \"contents\": [{\n    \"parts\": [{\n      \"text\": \"{{ $json.prompt }}\"\n    }]\n  }],\n  \"generationConfig\": {\n    \"temperature\": 0.7,\n    \"maxOutputTokens\": 512\n  }\n}"
+        "body": "={\n  \"model\": \"llama-3.3-70b-versatile\",\n  \"messages\": [{\n    \"role\": \"user\",\n    \"content\": \"{{ $json.prompt }}\"\n  }],\n  \"temperature\": 0.7,\n  \"max_tokens\": 512\n}"
       },
-      "id": "gemini-call",
-      "name": "Gemini AI",
+      "id": "groq-call",
+      "name": "Groq AI",
       "type": "n8n-nodes-base.httpRequest",
       "position": [900, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Build Gemini prompt with IIST knowledge base\nconst { phone_number, message_text, student_name, source_channel } = $input.item.json;\n\nconst knowledgeBase = `\nIIST Courses: B.Tech CSE (120 seats, ₹85,000/yr, JEE 85%ile), ECE (60 seats, ₹82,000/yr, JEE 70%ile), IT (60 seats, ₹82,000/yr, JEE 75%ile), ME (60 seats, ₹78,000/yr), CE (60 seats, ₹75,000/yr), MBA (60 seats, ₹65,000/yr).\nScholarships: Merit 25% off (95%ile+), SC/ST govt, Girls 10% off, Sports 20% off.\nHostel: Boys ₹45,000/yr, Girls ₹48,000/yr.\nDeadline: June 30 2026. Orientation: July 15 2026.\nPlacement: Avg ₹6.2LPA, Highest ₹18LPA (Microsoft). 92% CSE placed.\nApply: iist.ac.in/apply | admissions@iist.ac.in | +91-731-XXXXXXX\n`;\n\nconst prompt = `You are AdmitBot, IIST admission assistant. Reply in the SAME language as student (Hindi/Hinglish/English). Max 3-4 lines. 1-2 emojis. Never say 'I don't know' - redirect to counsellor.\n\nKnowledge Base:\n${knowledgeBase}\n\nStudent (${phone_number}) asks: ${message_text}\n\nAfter your reply, add JSON block:\n\\`\\`\\`json\n{\"intent_score\":\"Hot|Warm|Cold\",\"extracted_data\":{\"name\":null,\"city\":null,\"course_interest\":null,\"jee_percentile\":null,\"phone\":null},\"needs_escalation\":false}\n\\`\\`\\``;\n\nreturn [{ json: { ...($input.item.json), prompt } }];"
+        "jsCode": "// Build groq prompt with IIST knowledge base\nconst { phone_number, message_text, student_name, source_channel } = $input.item.json;\n\nconst knowledgeBase = `\nIIST Courses: B.Tech CSE (120 seats, ₹85,000/yr, JEE 85%ile), ECE (60 seats, ₹82,000/yr, JEE 70%ile), IT (60 seats, ₹82,000/yr, JEE 75%ile), ME (60 seats, ₹78,000/yr), CE (60 seats, ₹75,000/yr), MBA (60 seats, ₹65,000/yr).\nScholarships: Merit 25% off (95%ile+), SC/ST govt, Girls 10% off, Sports 20% off.\nHostel: Boys ₹45,000/yr, Girls ₹48,000/yr.\nDeadline: June 30 2026. Orientation: July 15 2026.\nPlacement: Avg ₹6.2LPA, Highest ₹18LPA (Microsoft). 92% CSE placed.\nApply: iist.ac.in/apply | admissions@iist.ac.in | +91-731-XXXXXXX\n`;\n\nconst prompt = `You are AdmitBot, IIST admission assistant. Reply in the SAME language as student (Hindi/Hinglish/English). Max 3-4 lines. 1-2 emojis. Never say 'I don't know' - redirect to counsellor.\n\nKnowledge Base:\n${knowledgeBase}\n\nStudent (${phone_number}) asks: ${message_text}\n\nAfter your reply, add JSON block:\n\\`\\`\\`json\n{\"intent_score\":\"Hot|Warm|Cold\",\"extracted_data\":{\"name\":null,\"city\":null,\"course_interest\":null,\"jee_percentile\":null,\"phone\":null},\"needs_escalation\":false}\n\\`\\`\\``;\n\nreturn [{ json: { ...($input.item.json), prompt } }];"
       },
       "id": "build-prompt",
-      "name": "Build Gemini Prompt",
+      "name": "Build Groq Prompt",
       "type": "n8n-nodes-base.code",
       "position": [680, 300]
     },
     {
       "parameters": {
-        "jsCode": "// Parse Gemini response and extract reply + structured data\nconst rawText = $input.item.json.candidates?.[0]?.content?.parts?.[0]?.text || '';\n\nconst jsonMatch = rawText.match(/```json\\s*([\\s\\S]*?)\\s*```/);\nlet structured = {};\nlet replyText = rawText.trim();\n\nif (jsonMatch) {\n  try { structured = JSON.parse(jsonMatch[1]); } catch(e) {}\n  replyText = rawText.substring(0, jsonMatch.index).trim();\n}\n\nconst prev = $node['Extract Message'].json;\n\nreturn [{\n  json: {\n    phone_number: prev.phone_number,\n    student_name: prev.student_name || structured.extracted_data?.name || '',\n    source_channel: prev.source_channel,\n    message_text: prev.message_text,\n    reply_text: replyText,\n    intent_score: structured.intent_score || 'Cold',\n    extracted_data: structured.extracted_data || {},\n    needs_escalation: structured.needs_escalation || false\n  }\n}];"
+        "jsCode": "// Parse Groq response and extract reply + structured data\nconst rawText = $input.item.json.choices?.[0]?.message?.content || '';\n\nconst jsonMatch = rawText.match(/```json\\s*([\\s\\S]*?)\\s*```/);\nlet structured = {};\nlet replyText = rawText.trim();\n\nif (jsonMatch) {\n  try { structured = JSON.parse(jsonMatch[1]); } catch(e) {}\n  replyText = rawText.substring(0, jsonMatch.index).trim();\n}\n\nconst prev = $node['Extract Message'].json;\n\nreturn [{\n  json: {\n    phone_number: prev.phone_number,\n    student_name: prev.student_name || structured.extracted_data?.name || '',\n    source_channel: prev.source_channel,\n    message_text: prev.message_text,\n    reply_text: replyText,\n    intent_score: structured.intent_score || 'Cold',\n    extracted_data: structured.extracted_data || {},\n    needs_escalation: structured.needs_escalation || false\n  }\n}];"
       },
       "id": "parse-response",
-      "name": "Parse Gemini Response",
+      "name": "Parse Groq Response",
       "type": "n8n-nodes-base.code",
       "position": [1120, 300]
     },
@@ -168,10 +163,10 @@
   "connections": {
     "WhatsApp Verify": { "main": [[{ "node": "Return Challenge", "type": "main", "index": 0 }]] },
     "WhatsApp Webhook": { "main": [[{ "node": "Extract Message", "type": "main", "index": 0 }]] },
-    "Extract Message": { "main": [[{ "node": "Build Gemini Prompt", "type": "main", "index": 0 }]] },
-    "Build Gemini Prompt": { "main": [[{ "node": "Gemini AI", "type": "main", "index": 0 }]] },
-    "Gemini AI": { "main": [[{ "node": "Parse Gemini Response", "type": "main", "index": 0 }]] },
-    "Parse Gemini Response": {
+    "Extract Message": { "main": [[{ "node": "Build Groq Prompt", "type": "main", "index": 0 }]] },
+    "Build Groq Prompt": { "main": [[{ "node": "Groq AI", "type": "main", "index": 0 }]] },
+    "Groq AI": { "main": [[{ "node": "Parse Groq Response", "type": "main", "index": 0 }]] },
+    "Parse Groq Response": {
       "main": [[
         { "node": "Send WhatsApp Reply", "type": "main", "index": 0 },
         { "node": "Save Lead to Sheets", "type": "main", "index": 0 },

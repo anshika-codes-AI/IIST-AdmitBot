@@ -304,3 +304,162 @@ def append_interaction(
     except Exception as exc:
         logger.error("Failed to write interaction to Google Sheets: %s", exc)
         return False
+
+
+def get_admin_analytics_snapshot(recent_limit: int = 25) -> Dict[str, Any]:
+    """
+    Build dashboard analytics from the Leads worksheet.
+
+    Returns a normalized payload that powers enquiry tracking, source performance,
+    regional demand heat, and counsellor performance on the admin dashboard.
+    """
+    snapshot: Dict[str, Any] = {
+        "totals": {
+            "enquiries": 0,
+            "conversions": 0,
+            "conversion_rate_percent": 0.0,
+        },
+        "source_roi": [],
+        "regional_heat": [],
+        "counsellor_performance": [],
+        "recent_enquiries": [],
+    }
+    if not settings.google_sheets_id:
+        return snapshot
+
+    try:
+        sheet = _get_leads_sheet()
+        records = sheet.get_all_records()
+    except Exception as exc:
+        logger.warning("Failed to build admin analytics snapshot: %s", exc)
+        return snapshot
+
+    if not records:
+        return snapshot
+
+    source_stats: Dict[str, Dict[str, int]] = {}
+    region_stats: Dict[str, Dict[str, Any]] = {}
+    counsellor_stats: Dict[str, Dict[str, int]] = {}
+    recent_rows: list[Dict[str, Any]] = []
+
+    total_enquiries = 0
+    total_conversions = 0
+
+    for record in records:
+        timestamp = str(record.get("Timestamp", "") or "")
+        name = str(record.get("Student Name", "") or "")
+        phone = str(record.get("Phone Number", "") or "")
+        city = str(record.get("City", "") or "")
+        state = str(record.get("State", "") or "")
+        source = str(record.get("Source Channel", "") or "Unknown").strip() or "Unknown"
+        lead_score = str(record.get("Lead Score", "") or "")
+        lead_status = str(record.get("Lead Status", "") or "")
+        assigned_to = str(record.get("Assigned To", "") or "Unassigned").strip() or "Unassigned"
+
+        is_converted = lead_status.lower() in {"enrolled", "converted", "admission done"}
+        total_enquiries += 1
+        if is_converted:
+            total_conversions += 1
+
+        source_item = source_stats.setdefault(source, {"enquiries": 0, "conversions": 0, "hot_leads": 0})
+        source_item["enquiries"] += 1
+        if is_converted:
+            source_item["conversions"] += 1
+        if lead_score.lower() == "hot":
+            source_item["hot_leads"] += 1
+
+        region_key = state.strip() or city.strip() or "Unknown"
+        region_item = region_stats.setdefault(
+            region_key,
+            {
+                "region": region_key,
+                "state": state,
+                "city": city,
+                "enquiries": 0,
+                "conversions": 0,
+            },
+        )
+        region_item["enquiries"] += 1
+        if is_converted:
+            region_item["conversions"] += 1
+
+        counsellor_item = counsellor_stats.setdefault(assigned_to, {"assigned": 0, "conversions": 0})
+        counsellor_item["assigned"] += 1
+        if is_converted:
+            counsellor_item["conversions"] += 1
+
+        recent_rows.append(
+            {
+                "timestamp": timestamp,
+                "name": name,
+                "phone": phone,
+                "city": city,
+                "state": state,
+                "source": source,
+                "lead_score": lead_score,
+                "status": lead_status,
+                "assigned_to": assigned_to,
+            }
+        )
+
+    source_roi: list[Dict[str, Any]] = []
+    for source, vals in source_stats.items():
+        enquiries = vals["enquiries"]
+        conversions = vals["conversions"]
+        conv_rate = round((conversions / enquiries) * 100, 2) if enquiries else 0.0
+        source_roi.append(
+            {
+                "source": source,
+                "enquiries": enquiries,
+                "conversions": conversions,
+                "conversion_rate_percent": conv_rate,
+                "roi_index": round(conv_rate, 2),
+                "hot_leads": vals["hot_leads"],
+            }
+        )
+    source_roi.sort(key=lambda item: item["enquiries"], reverse=True)
+
+    regional_heat: list[Dict[str, Any]] = []
+    for _, vals in region_stats.items():
+        enquiries = vals["enquiries"]
+        conversions = vals["conversions"]
+        conv_rate = round((conversions / enquiries) * 100, 2) if enquiries else 0.0
+        regional_heat.append(
+            {
+                "region": vals["region"],
+                "enquiries": enquiries,
+                "conversions": conversions,
+                "conversion_rate_percent": conv_rate,
+                "intensity": enquiries,
+            }
+        )
+    regional_heat.sort(key=lambda item: item["enquiries"], reverse=True)
+
+    counsellor_performance: list[Dict[str, Any]] = []
+    for counsellor, vals in counsellor_stats.items():
+        assigned = vals["assigned"]
+        conversions = vals["conversions"]
+        conv_rate = round((conversions / assigned) * 100, 2) if assigned else 0.0
+        counsellor_performance.append(
+            {
+                "counsellor": counsellor,
+                "assigned": assigned,
+                "conversions": conversions,
+                "conversion_rate_percent": conv_rate,
+            }
+        )
+    counsellor_performance.sort(key=lambda item: item["assigned"], reverse=True)
+
+    recent_rows.sort(key=lambda item: item["timestamp"], reverse=True)
+
+    snapshot["totals"] = {
+        "enquiries": total_enquiries,
+        "conversions": total_conversions,
+        "conversion_rate_percent": round((total_conversions / total_enquiries) * 100, 2)
+        if total_enquiries else 0.0,
+    }
+    snapshot["source_roi"] = source_roi
+    snapshot["regional_heat"] = regional_heat
+    snapshot["counsellor_performance"] = counsellor_performance
+    snapshot["recent_enquiries"] = recent_rows[:max(recent_limit, 1)]
+    return snapshot

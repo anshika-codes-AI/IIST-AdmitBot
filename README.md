@@ -18,6 +18,7 @@
 - [Quick Start](#quick-start)
 - [Configuration](#configuration)
 - [API Endpoints](#api-endpoints)
+- [Admin Dashboard Setup](#admin-dashboard-setup)
 - [n8n Automation Workflows](#n8n-automation-workflows)
 - [Implementation Phases](#implementation-phases)
 - [Running Tests](#running-tests)
@@ -52,7 +53,7 @@ Student (WhatsApp / Website)
 Meta WhatsApp API / Tawk.to
          │  (webhook)
          ▼
-  FastAPI Backend  ←──── Gemini AI (bilingual responses)
+   FastAPI Backend  ←──── Groq LLM (bilingual responses)
   (Railway.app)
          │
     ┌────┴────┐
@@ -72,8 +73,8 @@ Looker Studio Dashboard
 **Data flow:**
 1. Student sends WhatsApp/website message
 2. Meta API / Tawk.to forwards webhook to FastAPI backend
-3. FastAPI builds prompt with IIST knowledge base and calls Gemini AI
-4. Gemini generates bilingual reply + structured lead data
+3. FastAPI builds prompt with IIST knowledge base and calls Groq
+4. Groq generates bilingual reply + structured lead data
 5. FastAPI sends reply to student (<12 seconds end-to-end)
 6. Lead written to Google Sheets (with duplicate detection)
 7. If Hot lead → backend sends counsellor WhatsApp alert immediately
@@ -96,7 +97,7 @@ This repository is configured for **Backend-First** operation.
 
 | Component | Tool | Cost | Purpose |
 |---|---|---|---|
-| AI / NLP | Google Gemini API | Free (1M tokens/day) | Bilingual responses |
+| AI / NLP | Groq API | Free tier available | Bilingual responses |
 | Automation | n8n (self-hosted) | Free | Core workflow engine |
 | Backend | FastAPI + Python | Free | Webhook handler |
 | Cloud | Railway.app | Free (500 hrs/mo) | Hosts backend + n8n |
@@ -115,7 +116,7 @@ This repository is configured for **Backend-First** operation.
 │   ├── app.py                    # FastAPI application (webhooks)
 │   ├── config.py                 # Settings from environment variables
 │   ├── chatbot/
-│   │   ├── ai_client.py          # Multi-provider AI client (Groq/OpenAI/Gemini + fallback)
+│   │   ├── ai_client.py          # Groq-first AI client (+ rule-based fallback)
 │   │   ├── knowledge_base.py     # IIST course/fee/FAQ content
 │   │   ├── language_detector.py  # Hindi/Hinglish/English detection
 │   │   └── lead_scorer.py        # Hot/Warm/Cold scoring logic
@@ -185,7 +186,8 @@ Copy `.env.example` to `.env` and fill in all values:
 
 ```env
 # Required for bot to respond
-GEMINI_API_KEY=your_gemini_api_key         # From aistudio.google.com
+AI_PROVIDER=groq
+GROQ_API_KEY=gsk_your_groq_api_key
 
 # Required for WhatsApp channel
 WHATSAPP_PHONE_NUMBER_ID=your_phone_id
@@ -212,8 +214,58 @@ All credentials are stored as Railway environment variables — never in code.
 | `GET` | `/webhook/whatsapp` | Meta webhook verification handshake |
 | `POST` | `/webhook/whatsapp` | Receive incoming WhatsApp messages |
 | `POST` | `/webhook/tawkto` | Receive Tawk.to website chat messages |
+| `GET` | `/admin` | Admin dashboard UI |
+| `POST` | `/api/admin/auth/login` | Create admin session (username/password) |
+| `GET` | `/api/admin/auth/me` | Current admin session and role |
+| `POST` | `/api/admin/auth/logout` | Clear admin session |
+| `GET` | `/api/admin/overview` | Dashboard data API (session role or service bearer token) |
+
+Admin roles:
+- `admin`: full dashboard access
+- `viewer`: read-only dashboard access
+
+Set `ADMIN_USERS_JSON` in `.env` to manage credentials and roles.
+Set `N8N_API_URL` + `N8N_API_KEY` to enable live runtime workflow polling.
 
 **Interactive docs:** `http://localhost:8000/docs` (Swagger UI)
+
+---
+
+## Admin Dashboard Setup
+
+**For a complete, detailed setup guide on the professional admin dashboard with session-based authentication, role-based access, live n8n workflow monitoring, and analytics charts, see [ADMIN_SETUP.md](ADMIN_SETUP.md).**
+
+### Quick Admin Dashboard Features
+
+✅ **Session-Based Authentication** — Username/password login with secure cookies
+✅ **Role-Based Access** — Admin (full access) and Viewer (read-only) roles
+✅ **Live Workflow Monitoring** — Real-time n8n execution status and metrics
+✅ **Analytics Charts** — 24h lead trend line chart + counsellor performance bar chart
+✅ **Integration Health** — Status of Groq, WhatsApp, Telegram, Google Sheets, n8n, Tawk.to
+✅ **KPI Dashboard** — Real-time metrics (messages, hot leads, assignments, response time, uptime)
+✅ **Auto-Refresh** — Dashboard updates every 15 seconds
+
+### Quick Start (5 minutes)
+
+1. **Set env vars** (add to `.env`):
+   ```env
+   ADMIN_SESSION_SECRET=your_32_char_random_secret
+   ADMIN_USERS_JSON=[{"username":"admin","password":"Pass123","role":"admin"}]
+   N8N_API_URL=http://localhost:5678
+   N8N_API_KEY=your_n8n_api_key
+   ```
+
+2. **Run backend:**
+   ```bash
+   uvicorn backend.app:app --reload
+   ```
+
+3. **Open dashboard:**
+   - Visit `http://localhost:8000/admin`
+   - Login with `admin` / `Pass123`
+   - View workflows, KPIs, and charts
+
+**→ [Full Setup Guide](ADMIN_SETUP.md)**
 
 ---
 
@@ -240,7 +292,7 @@ Import JSON files from `n8n-workflows/` into your n8n instance:
 
 ### Phase 1 — Foundation ✅
 - [ ] Deploy n8n on Railway.app
-- [ ] Configure Gemini API key
+- [ ] Configure Groq API key
 - [ ] Build main bot workflow (`01-main-bot.json`)
 - [ ] Test 50 bilingual conversations
 
@@ -281,7 +333,7 @@ pytest --cov=backend --cov-report=term-missing
 - Language detection (Hindi / Hinglish / English)
 - Lead scoring (Hot / Warm / Cold)
 - WhatsApp webhook payload parsing
-- Gemini response parsing
+- AI response parsing
 - Counsellor round-robin assignment
 - FastAPI endpoints (health, verify, webhook)
 
@@ -289,17 +341,46 @@ pytest --cov=backend --cov-report=term-missing
 
 ## Deployment
 
-### Railway.app (Recommended — Free)
+### Render (Recommended for Backend-Only Deploys)
 
-1. Create account at [railway.app](https://railway.app)
-2. New Project → Deploy from GitHub repo
-3. Add all environment variables from `.env.example`
-4. Railway auto-detects `railway.toml` and deploys
+This repository can be deployed on Render without n8n, WhatsApp, or Google Sheets.
+That is the simplest path for a `website + Telegram` launch.
 
-### UptimeRobot (Prevent Railway Sleep)
+1. Push the repo to GitHub.
+2. In Render, create a new Web Service from the repo.
+3. Use these settings:
+   - Build Command: `pip install -r requirements.txt`
+   - Start Command: `uvicorn backend.app:app --host 0.0.0.0 --port $PORT`
+   - Health Check Path: `/health`
+4. Add the minimum required environment variables:
+   - `AI_PROVIDER=groq`
+   - `GROQ_API_KEY=your_real_groq_key`
+   - `TELEGRAM_BOT_TOKEN=your_real_telegram_token`
+   - `TELEGRAM_WEBHOOK_SECRET=your_random_secret`
+   - `API_SECRET_KEY=your_random_secret`
+5. Leave these blank if they are not ready yet:
+   - `WHATSAPP_PHONE_NUMBER_ID`
+   - `WHATSAPP_ACCESS_TOKEN`
+   - `GOOGLE_SHEETS_ID`
+   - `GOOGLE_SERVICE_ACCOUNT_JSON`
+   - `N8N_WEBHOOK_URL`
+
+You can also use the provided `render.yaml` blueprint for a one-click baseline deploy.
+
+### Telegram Webhook After Deploy
+
+After Render gives you a public URL, configure Telegram with:
+
+`https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://your-render-domain/webhook/telegram/<TELEGRAM_WEBHOOK_SECRET>`
+
+### Optional: Railway
+
+Railway remains supported through `railway.toml`, but Render is the simpler choice for the current backend-only rollout.
+
+### Uptime Monitoring
 
 1. Create account at [uptimerobot.com](https://uptimerobot.com)
-2. Add HTTP(S) monitor → `https://your-domain.railway.app/health`
+2. Add HTTP(S) monitor → `https://your-domain/health`
 3. Set interval: every 5 minutes
 4. Add email alert for downtime
 
@@ -345,7 +426,7 @@ pytest --cov=backend --cov-report=term-missing
 ## Security
 
 - All student data in **IIST-owned Google Sheets** — no third-party CRM
-- API credentials stored as **Railway encrypted environment variables** — never in code
+- API credentials stored as **platform environment variables** — never in code
 - **No student PII** sent to AI models — only message text and knowledge base
 - WhatsApp access token stored separately — rotatable in 10 minutes if compromised
 - Google Sheets access restricted to admission team via Google Workspace

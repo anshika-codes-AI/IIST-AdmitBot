@@ -1,14 +1,22 @@
 """FastAPI endpoint tests for health, webhooks, and /api/chat."""
 
-from unittest.mock import patch
+from unittest.mock import AsyncMock, patch
 
 from fastapi.testclient import TestClient
 
 from backend.app import app
 from backend import config
+from backend.chatbot.ai_client import AIResponse
 
 
 client = TestClient(app)
+
+
+def _admin_login(username: str = "admin", password: str = "admin123"):
+    return client.post(
+        "/api/admin/auth/login",
+        json={"username": username, "password": password},
+    )
 
 
 def _sample_whatsapp_payload() -> dict:
@@ -201,16 +209,62 @@ class TestApiChatEndpoint:
         data = resp.json()
         assert data["reply"]
 
+    def test_api_chat_avoids_repeated_handoff_loop_after_ack(self):
+        with patch("backend.app.generate_response", new_callable=AsyncMock) as mock_generate:
+            mock_generate.side_effect = [
+                AIResponse(
+                    reply_text="I will connect you with our admissions team. They will call you soon.",
+                    intent_score="Warm",
+                    extracted_data={},
+                    needs_escalation=True,
+                ),
+                AIResponse(
+                    reply_text="I will connect you with our admissions team. They will call you soon.",
+                    intent_score="Warm",
+                    extracted_data={},
+                    needs_escalation=True,
+                ),
+            ]
+
+            first = client.post(
+                "/api/chat",
+                json={"message": "9575383029", "session_id": "s-escalation"},
+            )
+            assert first.status_code == 200
+
+            second = client.post(
+                "/api/chat",
+                json={"message": "okay", "session_id": "s-escalation"},
+            )
+            assert second.status_code == 200
+            data = second.json()
+            assert data["needs_escalation"] is False
+            assert "details are shared" in data["reply"].lower()
+
+    def test_api_chat_suppresses_unnecessary_escalation_for_faq_query(self):
+        with patch("backend.app.generate_response", new_callable=AsyncMock) as mock_generate:
+            mock_generate.return_value = AIResponse(
+                reply_text="Our admissions team will contact you shortly.",
+                intent_score="Warm",
+                extracted_data={},
+                needs_escalation=True,
+            )
+
+            resp = client.post(
+                "/api/chat",
+                json={"message": "what are cse fees?", "session_id": "s-faq-no-handoff"},
+            )
+            assert resp.status_code == 200
+            data = resp.json()
+            assert data["needs_escalation"] is False
+            assert "₹" in data["reply"] or "fee" in data["reply"].lower()
+
 
 class TestApiLeadsEndpoint:
-    def test_api_leads_without_auth_when_no_secret(self):
-        # Temporarily clear the API secret to verify endpoint is accessible without auth.
+    def test_api_leads_requires_auth_without_session_or_token(self):
         with patch.object(config.settings, "api_secret_key", ""):
             resp = client.get("/api/leads")
-        assert resp.status_code == 200
-        data = resp.json()
-        assert data["status"] == "ok"
-        assert "summary" in data
+        assert resp.status_code == 401
 
     def test_api_leads_rejects_wrong_token(self):
         with patch.object(config.settings, "api_secret_key", "real_secret"):
@@ -221,3 +275,55 @@ class TestApiLeadsEndpoint:
         with patch.object(config.settings, "api_secret_key", "real_secret"):
             resp = client.get("/api/leads", headers={"Authorization": "Bearer real_secret"})
         assert resp.status_code == 200
+
+    def test_api_leads_accepts_admin_session(self):
+        with patch.object(config.settings, "api_secret_key", ""):
+            login = _admin_login()
+            assert login.status_code == 200
+            resp = client.get("/api/leads")
+        assert resp.status_code == 200
+
+
+class TestAdminDashboardEndpoints:
+    def test_admin_page_serves_html(self):
+        resp = client.get("/admin")
+        assert resp.status_code == 200
+        assert "text/html" in resp.headers.get("content-type", "")
+
+    def test_admin_login_and_me(self):
+        login = _admin_login()
+        assert login.status_code == 200
+        resp = client.get("/api/admin/auth/me")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["user"]["role"] in {"admin", "viewer"}
+
+    def test_admin_overview_rejects_without_auth(self):
+        with patch.object(config.settings, "api_secret_key", ""):
+            client.post("/api/admin/auth/logout")
+            resp = client.get("/api/admin/overview")
+        assert resp.status_code == 401
+
+    def test_admin_overview_exposes_groq_mode_after_login(self):
+        login = _admin_login()
+        assert login.status_code == 200
+        resp = client.get("/api/admin/overview")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["status"] == "ok"
+        assert data["ai_provider"]["mode"] == "groq-only"
+        assert data["ai_provider"]["provider"] == "groq"
+        assert "analytics" in data
+        assert "source_roi" in data["analytics"]
+        assert "regional_heat" in data["analytics"]
+        assert "recent_enquiries" in data["analytics"]
+        assert "persistent_totals" in data["analytics"]
+
+    def test_admin_logout_clears_session(self):
+        login = _admin_login()
+        assert login.status_code == 200
+        logout = client.post("/api/admin/auth/logout")
+        assert logout.status_code == 200
+        me = client.get("/api/admin/auth/me")
+        assert me.status_code == 401

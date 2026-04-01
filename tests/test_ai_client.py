@@ -5,6 +5,7 @@ import pytest
 from backend.chatbot.ai_client import (
     AIResponse,
     GeminiResponse,
+    _extract_student_message_from_prompt,
     _parse_structured_output,
     _rule_based_response,
 )
@@ -70,6 +71,14 @@ class TestParseStructuredOutput:
         assert "```json" not in result.reply_text
         assert "₹85,000" in result.reply_text
 
+    def test_json_only_output_gets_safe_reply(self):
+        raw = (
+            '```json\n{"intent_score": "Warm", "extracted_data": {}, "needs_escalation": false}\n```'
+        )
+        result = _parse_structured_output(raw)
+        assert result.reply_text
+        assert "courses" in result.reply_text.lower()
+
 
 class TestRuleBasedResponse:
     def test_cse_query(self):
@@ -106,3 +115,27 @@ class TestRuleBasedResponse:
     def test_hinglish_fee_query(self):
         r = _rule_based_response("fees kitni hai bhai?")
         assert "₹" in r.reply_text
+
+    def test_admission_timing_query(self):
+        r = _rule_based_response("admission timings?")
+        assert "timings" in r.reply_text.lower() or "am" in r.reply_text.lower()
+
+    def test_campus_visit_query(self):
+        r = _rule_based_response("when can i visit the college?")
+        assert "visit" in r.reply_text.lower() or "schedule" in r.reply_text.lower()
+
+
+class TestPromptMessageExtraction:
+    def test_extracts_only_student_message_from_template_prompt(self):
+        prompt = (
+            "Knowledge Base: ...\n"
+            "Student message: when can i visit the college?\n\n"
+            "Respond naturally in the student's language. After your reply, on a NEW LINE add a JSON block"
+        )
+        extracted = _extract_student_message_from_prompt(prompt)
+        assert extracted == "when can i visit the college?"
+
+    def test_fallback_extraction_uses_first_tail_line(self):
+        prompt = "x\nStudent message: admission timings?\nother instructions"
+        extracted = _extract_student_message_from_prompt(prompt)
+        assert extracted == "admission timings?"

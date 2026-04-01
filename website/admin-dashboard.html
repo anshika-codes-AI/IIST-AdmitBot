@@ -1,0 +1,1389 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IIST Admission Analytics</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@600;700&family=Source+Sans+3:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f5f4ef;
+      --bg-accent: #edf2ed;
+      --surface: #fefdfa;
+      --surface-soft: #f4f7f3;
+      --surface-elevated: #fffcf6;
+      --ink: #1d2a24;
+      --muted: #607067;
+      --brand: #1c7f58;
+      --brand-strong: #135d40;
+      --brand-soft: rgba(28, 127, 88, 0.14);
+      --danger: #b24a3f;
+      --warning: #a06a1b;
+      --ok: #2f8a62;
+      --radius: 22px;
+      --radius-sm: 14px;
+      --line: rgba(33, 77, 57, 0.18);
+      --card-shadow: 0 20px 44px rgba(18, 48, 35, 0.1);
+      --card-shadow-lg: 0 28px 70px rgba(18, 48, 35, 0.13);
+    }
+
+    body[data-theme="dark"] {
+      --bg: #101713;
+      --bg-accent: #16211c;
+      --surface: #1a2620;
+      --surface-soft: #203028;
+      --surface-elevated: #27382f;
+      --ink: #e8f0ea;
+      --muted: #adc0b5;
+      --brand: #5ec997;
+      --brand-strong: #7addab;
+      --brand-soft: rgba(94, 201, 151, 0.2);
+      --danger: #e3877c;
+      --warning: #e2b05a;
+      --ok: #84d6ad;
+      --line: rgba(126, 172, 148, 0.28);
+      --card-shadow: 0 20px 44px rgba(0, 0, 0, 0.34);
+      --card-shadow-lg: 0 28px 70px rgba(0, 0, 0, 0.44);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      font-family: "Source Sans 3", "Segoe UI", sans-serif;
+      color: var(--ink);
+      background:
+        radial-gradient(circle at 6% 10%, #e7f1e7 0%, transparent 36%),
+        radial-gradient(circle at 90% 4%, #e7efe7 0%, transparent 30%),
+        radial-gradient(circle at 84% 92%, #fbf2e2 0%, transparent 28%),
+        linear-gradient(180deg, var(--bg-accent), var(--bg));
+      background-attachment: fixed;
+      position: relative;
+    }
+
+    body::before {
+      content: "";
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      background-image: linear-gradient(rgba(34, 88, 62, 0.04) 1px, transparent 1px), linear-gradient(90deg, rgba(34, 88, 62, 0.04) 1px, transparent 1px);
+      background-size: 24px 24px;
+      mask-image: radial-gradient(circle at 50% 50%, #000 40%, transparent 100%);
+    }
+
+    body[data-theme="dark"]::before {
+      background-image: linear-gradient(rgba(231, 204, 169, 0.06) 1px, transparent 1px), linear-gradient(90deg, rgba(231, 204, 169, 0.06) 1px, transparent 1px);
+    }
+
+    .app-layout {
+      width: min(1600px, 96vw);
+      margin: 0 auto;
+      display: grid;
+      grid-template-columns: 280px minmax(0, 1fr);
+      gap: 20px;
+      align-items: start;
+      padding: 18px 0 26px;
+    }
+
+    .sidebar {
+      position: sticky;
+      top: 16px;
+      background: linear-gradient(160deg, rgba(255, 252, 247, 0.97), rgba(248, 242, 232, 0.91));
+      border: 1px solid var(--line);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow-lg);
+      padding: 16px;
+      z-index: 2;
+      min-height: calc(100vh - 42px);
+      display: grid;
+      align-content: start;
+      gap: 10px;
+    }
+
+    body[data-theme="dark"] .sidebar {
+      background: linear-gradient(160deg, rgba(31, 25, 19, 0.95), rgba(26, 21, 16, 0.88));
+    }
+
+    .sidebar h2 {
+      margin: 0;
+      font-size: 0.8rem;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      color: var(--muted);
+    }
+
+    .brand-chip {
+      display: grid;
+      gap: 3px;
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 10px 12px;
+      margin-bottom: 2px;
+    }
+
+    .brand-chip strong {
+      font-size: 0.88rem;
+      letter-spacing: 0.01em;
+      font-family: "Playfair Display", Georgia, serif;
+    }
+
+    .brand-chip span {
+      color: var(--muted);
+      font-size: 0.76rem;
+      font-family: "IBM Plex Mono", monospace;
+    }
+
+    .side-links {
+      display: grid;
+      gap: 6px;
+    }
+
+    .side-link {
+      text-decoration: none;
+      color: var(--ink);
+      font-weight: 600;
+      font-size: 0.88rem;
+      padding: 11px 12px;
+      border-radius: 12px;
+      border: 1px solid transparent;
+      transition: background 140ms ease, border-color 140ms ease, color 140ms ease;
+    }
+
+    .side-link:hover {
+      background: color-mix(in srgb, var(--brand) 12%, transparent);
+      border-color: color-mix(in srgb, var(--brand) 32%, transparent);
+    }
+
+    .side-link.active {
+      background: linear-gradient(120deg, color-mix(in srgb, var(--brand) 20%, transparent), color-mix(in srgb, var(--brand-strong) 11%, transparent));
+      border-color: color-mix(in srgb, var(--brand) 42%, transparent);
+      color: var(--brand-strong);
+    }
+
+    .theme-toggle {
+      width: 100%;
+      margin-top: 12px;
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      background: linear-gradient(160deg, var(--surface-soft), var(--surface-elevated));
+      color: var(--ink);
+      padding: 10px 12px;
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.8rem;
+      cursor: pointer;
+      transition: transform 140ms ease, border-color 140ms ease;
+    }
+
+    .theme-toggle:hover {
+      border-color: color-mix(in srgb, var(--brand) 48%, transparent);
+      transform: translateY(-1px);
+    }
+
+    .shell {
+      position: relative;
+      z-index: 1;
+      width: 100%;
+      margin: 0;
+      display: grid;
+      gap: 18px;
+      animation: rise 420ms ease-out;
+    }
+
+    .header {
+      background:
+        linear-gradient(145deg, rgba(255, 252, 247, 0.97), rgba(245, 250, 246, 0.9)),
+        linear-gradient(120deg, #e7f0e8, #f8f2e6);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow-lg);
+      border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+      padding: 24px 26px;
+      display: grid;
+      gap: 18px;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .header::after {
+      content: "";
+      position: absolute;
+      width: 320px;
+      height: 320px;
+      border-radius: 50%;
+      right: -128px;
+      top: -148px;
+      background: radial-gradient(circle, color-mix(in srgb, var(--brand) 26%, transparent) 0%, rgba(14, 90, 167, 0) 70%);
+    }
+
+    body[data-theme="dark"] .header {
+      background:
+        linear-gradient(145deg, rgba(24, 35, 29, 0.95), rgba(20, 30, 25, 0.88)),
+        linear-gradient(120deg, #1f3028, #263931);
+      border-color: color-mix(in srgb, var(--brand) 32%, transparent);
+    }
+
+    .header-top {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      align-items: center;
+      gap: 12px;
+    }
+
+    h1 {
+      margin: 0;
+      font-size: clamp(1.35rem, 2.7vw, 2.15rem);
+      letter-spacing: -0.015em;
+      font-family: "Playfair Display", Georgia, serif;
+      font-weight: 700;
+    }
+
+    .subline {
+      margin: 0;
+      color: var(--muted);
+      font-size: 0.92rem;
+      margin-top: 4px;
+    }
+
+    .pill {
+      border-radius: 999px;
+      padding: 9px 14px;
+      font-weight: 700;
+      font-size: 0.8rem;
+      letter-spacing: 0.03em;
+      text-transform: uppercase;
+      background: var(--brand-soft);
+      color: var(--brand);
+      border: 1px solid color-mix(in srgb, var(--brand) 35%, transparent);
+    }
+
+    .auth {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      align-items: center;
+    }
+
+    .auth .identity,
+    .auth button {
+      border-radius: 12px;
+      border: 1px solid var(--line);
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.86rem;
+      padding: 10px 13px;
+      min-height: 44px;
+    }
+
+    .auth .identity {
+      background: var(--surface);
+      min-width: min(280px, 62vw);
+      display: inline-flex;
+      align-items: center;
+      color: var(--muted);
+    }
+
+    .auth .identity strong {
+      color: var(--ink);
+      margin-left: 6px;
+    }
+
+    .auth button {
+      border: none;
+      background: linear-gradient(120deg, var(--brand-strong), var(--brand));
+      color: #ffffff;
+      font-weight: 600;
+      cursor: pointer;
+      transition: transform 140ms ease, box-shadow 140ms ease;
+    }
+
+    .auth button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 18px color-mix(in srgb, var(--brand) 34%, transparent);
+    }
+
+    .auth .secondary {
+      background: linear-gradient(120deg, color-mix(in srgb, var(--brand) 8%, #ffffff), color-mix(in srgb, var(--brand) 16%, #ffffff));
+      color: var(--brand-strong);
+      border: 1px solid color-mix(in srgb, var(--brand) 30%, transparent);
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(12, 1fr);
+      gap: 18px;
+    }
+
+    .card {
+      background: var(--surface);
+      border-radius: var(--radius);
+      box-shadow: var(--card-shadow);
+      border: 1px solid var(--line);
+      padding: 20px 20px 17px;
+      position: relative;
+      overflow: hidden;
+      transition: transform 160ms ease, box-shadow 160ms ease;
+    }
+
+    .card:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 20px 36px rgba(8, 30, 56, 0.14);
+    }
+
+    .card::before {
+      content: "";
+      position: absolute;
+      inset: 0 auto auto 0;
+      height: 4px;
+      width: 100%;
+      background: linear-gradient(90deg, var(--brand), #b8844a);
+      opacity: 0.55;
+    }
+
+    body[data-theme="dark"] .card,
+    body[data-theme="dark"] .row {
+      background: linear-gradient(180deg, rgba(18, 36, 58, 0.95), rgba(15, 31, 50, 0.95));
+    }
+
+    .kpi {
+      grid-column: span 3;
+      min-height: 146px;
+      display: grid;
+      gap: 8px;
+      align-content: start;
+    }
+
+    .kpi::after {
+      content: "";
+      position: absolute;
+      right: 14px;
+      top: 14px;
+      width: 42px;
+      height: 42px;
+      border-radius: 14px;
+      background: linear-gradient(145deg, color-mix(in srgb, var(--brand) 20%, transparent), color-mix(in srgb, #b8844a 14%, transparent));
+      border: 1px solid color-mix(in srgb, var(--brand) 20%, transparent);
+    }
+
+    .kpi h3 {
+      margin: 0;
+      font-size: 0.74rem;
+      text-transform: uppercase;
+      letter-spacing: 0.11em;
+      color: var(--muted);
+    }
+
+    .value {
+      font-size: clamp(1.5rem, 2.2vw, 2rem);
+      font-weight: 800;
+      line-height: 1.1;
+      letter-spacing: -0.02em;
+    }
+
+    .hint {
+      color: var(--muted);
+      font-size: 0.82rem;
+    }
+
+    .panel {
+      grid-column: span 6;
+      min-height: 260px;
+    }
+
+    .panel h2 {
+      margin: 0 0 14px;
+      font-size: 1rem;
+      letter-spacing: -0.01em;
+      font-family: "Playfair Display", Georgia, serif;
+      font-weight: 600;
+    }
+
+    canvas {
+      width: 100%;
+      max-height: 230px;
+    }
+
+    .stack {
+      display: grid;
+      gap: 11px;
+    }
+
+    .row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 13px;
+      border-radius: 12px;
+      border: 1px solid rgba(16, 32, 53, 0.09);
+      background: linear-gradient(180deg, #ffffff, #f7fbff);
+    }
+
+    .badge {
+      border-radius: 999px;
+      font-size: 0.74rem;
+      font-weight: 700;
+      padding: 5px 10px;
+      min-width: 84px;
+      text-align: center;
+      font-family: "IBM Plex Mono", monospace;
+    }
+
+    .ok {
+      color: #0f5f3c;
+      background: #d8f2e3;
+      border: 1px solid rgba(20, 110, 72, 0.24);
+    }
+
+    .warn {
+      color: #7a470f;
+      background: #fce8cc;
+      border: 1px solid rgba(201, 123, 31, 0.36);
+    }
+
+    .fail {
+      color: #7b2618;
+      background: #f8dbd5;
+      border: 1px solid rgba(185, 59, 38, 0.35);
+    }
+
+    .table-card {
+      grid-column: span 12;
+      padding: 0;
+      overflow: hidden;
+    }
+
+    .table-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 10px;
+      padding: 18px 20px;
+      border-bottom: 1px solid var(--line);
+      background: var(--surface-soft);
+    }
+
+    .table-head h2 {
+      margin: 0;
+      font-family: "Playfair Display", Georgia, serif;
+      font-size: 1.08rem;
+      font-weight: 600;
+    }
+
+    .table-tools {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(150px, 1fr));
+      gap: 8px;
+      width: 100%;
+      margin-top: 4px;
+    }
+
+    .table-tools input,
+    .table-tools select,
+    .table-tools button {
+      border-radius: 10px;
+      border: 1px solid var(--line);
+      min-height: 38px;
+      background: var(--surface);
+      color: var(--ink);
+      padding: 8px 10px;
+      font-size: 0.84rem;
+      font-family: "IBM Plex Mono", monospace;
+    }
+
+    .table-tools input:focus,
+    .table-tools select:focus {
+      outline: none;
+      border-color: color-mix(in srgb, var(--brand) 45%, transparent);
+      box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand) 16%, transparent);
+    }
+
+    .table-tools button {
+      cursor: pointer;
+      background: linear-gradient(120deg, var(--brand-strong), var(--brand));
+      border: none;
+      color: #fff;
+      font-weight: 600;
+    }
+
+    .table-tools button.secondary {
+      background: var(--surface-soft);
+      border: 1px solid var(--line);
+      color: var(--ink);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: 0.9rem;
+      table-layout: fixed;
+    }
+
+    th,
+    td {
+      padding: 12px 14px;
+      border-bottom: 1px solid rgba(16, 32, 53, 0.08);
+      text-align: left;
+      vertical-align: middle;
+      overflow-wrap: anywhere;
+    }
+
+    th {
+      font-size: 0.74rem;
+      color: var(--muted);
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      background-image: linear-gradient(0deg, rgba(16, 32, 53, 0.03), rgba(16, 32, 53, 0.03));
+    }
+
+    tbody tr:hover {
+      background: color-mix(in srgb, var(--brand) 7%, transparent);
+    }
+
+    .mono {
+      font-family: "IBM Plex Mono", monospace;
+      font-size: 0.84rem;
+    }
+
+    .heat-track {
+      position: relative;
+      width: 128px;
+      height: 10px;
+      border-radius: 999px;
+      background: color-mix(in srgb, var(--brand) 20%, transparent);
+      overflow: hidden;
+    }
+
+    .heat-fill {
+      position: absolute;
+      inset: 0 auto 0 0;
+      background: linear-gradient(90deg, #d8b083, #bb7a3e, #a24337);
+    }
+
+    .status-strip {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: var(--muted);
+      font-size: 0.84rem;
+      font-family: "IBM Plex Mono", monospace;
+      padding-top: 4px;
+    }
+
+    .dot {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+      background: var(--warning);
+      box-shadow: 0 0 0 6px rgba(201, 123, 31, 0.12);
+    }
+
+    .dot.live {
+      background: var(--ok);
+      box-shadow: 0 0 0 6px rgba(27, 138, 87, 0.14);
+    }
+
+    @keyframes rise {
+      from {
+        transform: translateY(8px);
+        opacity: 0;
+      }
+      to {
+        transform: translateY(0);
+        opacity: 1;
+      }
+    }
+
+    @media (max-width: 980px) {
+      .app-layout {
+        grid-template-columns: 1fr;
+        width: 96vw;
+      }
+
+      .sidebar {
+        position: static;
+        min-height: auto;
+      }
+
+      .side-links {
+        grid-template-columns: repeat(5, minmax(0, 1fr));
+      }
+
+      .table-tools {
+        grid-template-columns: repeat(3, minmax(120px, 1fr));
+      }
+
+      .kpi,
+      .panel {
+        grid-column: span 6;
+      }
+
+      .header {
+        padding: 18px;
+      }
+    }
+
+    @media (max-width: 640px) {
+      .side-links {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+      }
+
+      .table-tools {
+        grid-template-columns: 1fr;
+      }
+
+      .shell {
+        margin: 0;
+      }
+
+      .kpi,
+      .panel,
+      .table-card {
+        grid-column: span 12;
+      }
+
+      .kpi {
+        min-height: 124px;
+      }
+
+      .brand-chip {
+        margin-bottom: 6px;
+      }
+
+      .auth .identity,
+      .auth button {
+        min-width: 100%;
+      }
+
+      table,
+      thead,
+      tbody,
+      th,
+      td,
+      tr {
+        display: block;
+      }
+
+      thead {
+        display: none;
+      }
+
+      tr {
+        border-bottom: 1px solid rgba(16, 32, 53, 0.12);
+        padding: 10px 14px;
+      }
+
+      td {
+        border: none;
+        padding: 6px 0;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="app-layout">
+    <aside class="sidebar">
+      <div class="brand-chip">
+        <strong>IIST Admissions</strong>
+        <span>Analytics Suite</span>
+      </div>
+      <h2>Navigation</h2>
+      <nav class="side-links" id="sidebar-links">
+        <a class="side-link" href="#section-overview">Overview</a>
+        <a class="side-link" href="#section-demand">Demand Insights</a>
+        <a class="side-link" href="#section-counsellors">Counsellors</a>
+        <a class="side-link" href="#section-enquiries">Enquiries</a>
+      </nav>
+      <button class="theme-toggle" id="theme-toggle">Switch Theme</button>
+    </aside>
+
+    <main class="shell">
+    <section class="header">
+      <div class="header-top">
+        <div>
+          <h1>IIST Admission Analytics</h1>
+          <p class="subline">WhatsApp and website enquiry intelligence for admissions strategy</p>
+        </div>
+        <div class="pill">Premium View</div>
+      </div>
+      <div class="auth">
+        <div class="identity">Signed in as <strong id="auth-user">Checking session...</strong></div>
+        <button id="open-login-btn" class="secondary">Open Login</button>
+        <button id="logout-btn" style="background: linear-gradient(120deg, #ab4e40, #c16858);">Logout</button>
+      </div>
+      <div class="status-strip">
+        <span class="dot" id="live-dot"></span>
+        <span id="last-sync">Waiting for first sync...</span>
+      </div>
+    </section>
+
+    <section class="grid">
+      <article class="card kpi" id="section-overview">
+        <h3>Total Enquiries</h3>
+        <div class="value" id="total-enquiries">-</div>
+        <div class="hint" id="enquiry-trend-hint">Across website and WhatsApp</div>
+      </article>
+
+      <article class="card kpi">
+        <h3>Total Conversions</h3>
+        <div class="value" id="total-conversions-value">-</div>
+        <div class="hint" id="conversion-share-hint">Admission conversions recorded</div>
+      </article>
+
+      <article class="card kpi">
+        <h3>Overall Conversion</h3>
+        <div class="value" id="overall-conversion">-</div>
+        <div class="hint">Persistent lead sheet conversion rate</div>
+      </article>
+
+      <article class="card kpi">
+        <h3>Hot Lead Rate</h3>
+        <div class="value" id="hot-rate">-</div>
+        <div class="hint" id="active-sessions">Active Conversations: -</div>
+      </article>
+
+      <article class="card kpi">
+        <h3>Average Response</h3>
+        <div class="value" id="avg-response">-</div>
+        <div class="hint" id="uptime">Platform uptime: -</div>
+      </article>
+
+      <article class="card kpi">
+        <h3>Escalation Rate</h3>
+        <div class="value" id="esc-rate">-</div>
+        <div class="hint">Queries requiring counsellor handoff</div>
+      </article>
+
+      <article class="card panel" id="section-demand">
+        <h2>Source-wise ROI</h2>
+        <div class="stack" id="source-roi"></div>
+      </article>
+
+      <article class="card panel">
+        <h2>Regional Heat Map</h2>
+        <div class="stack" id="regional-heat"></div>
+      </article>
+
+      <article class="card panel">
+        <h2>Lead Trend (24h)</h2>
+        <canvas id="hourly-trend-chart" height="160"></canvas>
+      </article>
+
+      <article class="card panel" id="section-counsellors">
+        <h2>Counsellor Conversion</h2>
+        <canvas id="counsellor-chart" height="160"></canvas>
+      </article>
+
+      <article class="card table-card" id="section-enquiries">
+        <div class="table-head">
+          <h2>Recent Enquiries</h2>
+          <span class="mono" id="recent-count">0 rows</span>
+          <div class="table-tools">
+            <input id="filter-from-date" type="date" aria-label="Filter from date" />
+            <input id="filter-to-date" type="date" aria-label="Filter to date" />
+            <select id="filter-source" aria-label="Filter by source">
+              <option value="">All Sources</option>
+            </select>
+            <select id="filter-counsellor" aria-label="Filter by counsellor">
+              <option value="">All Counsellors</option>
+            </select>
+            <input id="filter-search" type="search" placeholder="Search name/phone/region" aria-label="Search enquiries" />
+            <button id="export-csv-btn" type="button">Export CSV</button>
+            <button id="clear-filters-btn" class="secondary" type="button">Clear Filters</button>
+          </div>
+        </div>
+        <table>
+          <thead>
+            <tr>
+              <th>Timestamp</th>
+              <th>Name</th>
+              <th>Phone</th>
+              <th>Source</th>
+              <th>Region</th>
+              <th>Lead Score</th>
+              <th>Status</th>
+              <th>Counsellor</th>
+            </tr>
+          </thead>
+          <tbody id="recent-enquiries"></tbody>
+        </table>
+      </article>
+    </section>
+    </main>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+  <script>
+    const overviewEndpoint = "/api/admin/overview";
+    const meEndpoint = "/api/admin/auth/me";
+    const logoutEndpoint = "/api/admin/auth/logout";
+    const DEMO_MODE_KEY = "iistAdminDemoMode";
+    const DEFAULT_DEMO_MODE = true;
+
+    const authUserLabel = document.getElementById("auth-user");
+    const openLoginBtn = document.getElementById("open-login-btn");
+    const logoutBtn = document.getElementById("logout-btn");
+    const themeToggleBtn = document.getElementById("theme-toggle");
+    const sidebarLinks = Array.from(document.querySelectorAll("#sidebar-links .side-link"));
+
+    const filterFromDate = document.getElementById("filter-from-date");
+    const filterToDate = document.getElementById("filter-to-date");
+    const filterSource = document.getElementById("filter-source");
+    const filterCounsellor = document.getElementById("filter-counsellor");
+    const filterSearch = document.getElementById("filter-search");
+    const exportCsvBtn = document.getElementById("export-csv-btn");
+    const clearFiltersBtn = document.getElementById("clear-filters-btn");
+
+    let hourlyChart = null;
+    let counsellorChart = null;
+    let latestRecentEnquiries = [];
+    let filteredRecentEnquiries = [];
+    const integerFormatter = new Intl.NumberFormat("en-IN");
+    const THEME_KEY = "iistAdminTheme";
+    const ADMIN_LOGIN_URL_KEY = "iistAdminLoginUrl";
+
+    function isDemoMode() {
+      const params = new URLSearchParams(window.location.search);
+      const queryMode = params.get("demo");
+      if (queryMode === "1") {
+        localStorage.setItem(DEMO_MODE_KEY, "true");
+        return true;
+      }
+      if (queryMode === "0") {
+        localStorage.setItem(DEMO_MODE_KEY, "false");
+        return false;
+      }
+
+      const saved = localStorage.getItem(DEMO_MODE_KEY);
+      if (saved === "true") return true;
+      if (saved === "false") return false;
+
+      localStorage.setItem(DEMO_MODE_KEY, String(DEFAULT_DEMO_MODE));
+      return DEFAULT_DEMO_MODE;
+    }
+
+    function buildDemoOverview() {
+      const now = new Date();
+      return {
+        runtime: {
+          avg_response_ms: 820,
+          hot_lead_rate_percent: 31.6,
+          escalation_rate_percent: 14.2,
+          active_sessions: 46,
+          uptime_seconds: 172800,
+          hot_leads_total: 186,
+          messages_total: 4821,
+        },
+        analytics: {
+          persistent_totals: {
+            enquiries: 1248,
+            conversions: 312,
+            conversion_rate_percent: 25.0,
+          },
+          hourly_trend_24h: {
+            labels: [
+              "00:00", "02:00", "04:00", "06:00", "08:00", "10:00",
+              "12:00", "14:00", "16:00", "18:00", "20:00", "22:00",
+            ],
+            messages: [48, 32, 28, 40, 74, 96, 110, 126, 118, 102, 88, 61],
+            hot_leads: [6, 4, 3, 5, 10, 14, 18, 21, 19, 16, 13, 8],
+            conversions: [2, 1, 1, 2, 4, 6, 7, 9, 8, 7, 5, 3],
+          },
+          counsellor_conversion: [
+            { counsellor: "Neha Sharma", assigned: 210, conversions: 62 },
+            { counsellor: "Aman Verma", assigned: 198, conversions: 54 },
+            { counsellor: "Priya Nair", assigned: 176, conversions: 48 },
+            { counsellor: "Rohit Jain", assigned: 164, conversions: 39 },
+          ],
+          source_roi: [
+            { source: "Website", enquiries: 430, conversions: 118, conversion_rate_percent: 27.4 },
+            { source: "WhatsApp", enquiries: 356, conversions: 92, conversion_rate_percent: 25.8 },
+            { source: "Instagram", enquiries: 292, conversions: 64, conversion_rate_percent: 21.9 },
+            { source: "Referral", enquiries: 170, conversions: 38, conversion_rate_percent: 22.4 },
+          ],
+          regional_heat: [
+            { region: "Indore", enquiries: 290 },
+            { region: "Bhopal", enquiries: 245 },
+            { region: "Ujjain", enquiries: 132 },
+            { region: "Gwalior", enquiries: 120 },
+            { region: "Jabalpur", enquiries: 104 },
+          ],
+          recent_enquiries: [
+            {
+              timestamp: new Date(now.getTime() - 5 * 60000).toISOString(),
+              name: "Riya Sharma",
+              phone: "+919575383029",
+              source: "Website",
+              state: "Madhya Pradesh",
+              city: "Indore",
+              lead_score: "Hot",
+              status: "Follow-up Pending",
+              assigned_to: "Neha Sharma",
+            },
+            {
+              timestamp: new Date(now.getTime() - 12 * 60000).toISOString(),
+              name: "Arjun Patel",
+              phone: "+919876543210",
+              source: "WhatsApp",
+              state: "Madhya Pradesh",
+              city: "Bhopal",
+              lead_score: "Warm",
+              status: "Callback Scheduled",
+              assigned_to: "Aman Verma",
+            },
+            {
+              timestamp: new Date(now.getTime() - 19 * 60000).toISOString(),
+              name: "Sana Khan",
+              phone: "+918888776655",
+              source: "Instagram",
+              state: "Madhya Pradesh",
+              city: "Ujjain",
+              lead_score: "Warm",
+              status: "Documents Pending",
+              assigned_to: "Priya Nair",
+            },
+            {
+              timestamp: new Date(now.getTime() - 26 * 60000).toISOString(),
+              name: "Mohit Raj",
+              phone: "+917891234567",
+              source: "Referral",
+              state: "Madhya Pradesh",
+              city: "Gwalior",
+              lead_score: "Hot",
+              status: "Converted",
+              assigned_to: "Rohit Jain",
+            },
+          ],
+        },
+      };
+    }
+
+    function safe(value) {
+      return String(value ?? "")
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#39;");
+    }
+
+    function fmtInt(value) {
+      const number = Number(value || 0);
+      return integerFormatter.format(Number.isFinite(number) ? number : 0);
+    }
+
+    function formatDuration(seconds) {
+      const h = Math.floor(seconds / 3600);
+      const m = Math.floor((seconds % 3600) / 60);
+      const s = seconds % 60;
+      return `${h}h ${m}m ${s}s`;
+    }
+
+    function parseDateValue(raw) {
+      if (!raw) return null;
+      const direct = new Date(raw);
+      if (!Number.isNaN(direct.valueOf())) return direct;
+      const normalized = String(raw).replace(" ", "T");
+      const parsed = new Date(normalized);
+      if (!Number.isNaN(parsed.valueOf())) return parsed;
+      return null;
+    }
+
+    function applyTheme(theme) {
+      const normalized = theme === "dark" ? "dark" : "light";
+      document.body.setAttribute("data-theme", normalized);
+      localStorage.setItem(THEME_KEY, normalized);
+      themeToggleBtn.textContent = normalized === "dark" ? "Theme: Dark Pro" : "Theme: Light Pro";
+    }
+
+    function setupTheme() {
+      const saved = localStorage.getItem(THEME_KEY);
+      applyTheme(saved || "light");
+      themeToggleBtn.addEventListener("click", () => {
+        const current = document.body.getAttribute("data-theme");
+        applyTheme(current === "dark" ? "light" : "dark");
+      });
+    }
+
+    function setupSectionObserver() {
+      const sections = sidebarLinks
+        .map((link) => document.querySelector(link.getAttribute("href")))
+        .filter(Boolean);
+
+      if (!sections.length) return;
+
+      const setActive = (id) => {
+        sidebarLinks.forEach((link) => {
+          link.classList.toggle("active", link.getAttribute("href") === `#${id}`);
+        });
+      };
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          const active = entries
+            .filter((entry) => entry.isIntersecting)
+            .sort((a, b) => b.intersectionRatio - a.intersectionRatio)[0];
+          if (active?.target?.id) {
+            setActive(active.target.id);
+          }
+        },
+        { rootMargin: "-30% 0px -55% 0px", threshold: [0.2, 0.45, 0.7] }
+      );
+
+      sections.forEach((section) => observer.observe(section));
+      if (sections[0]?.id) {
+        setActive(sections[0].id);
+      }
+    }
+
+    function fillSelectOptions(selectNode, options, allLabel) {
+      const current = selectNode.value;
+      const normalized = new Set((options || []).map((value) => String(value || "").trim()).filter(Boolean));
+      const list = Array.from(normalized).sort((a, b) => a.localeCompare(b));
+      selectNode.innerHTML = `<option value="">${safe(allLabel)}</option>${list
+        .map((item) => `<option value="${safe(item)}">${safe(item)}</option>`)
+        .join("")}`;
+      if (current && list.includes(current)) {
+        selectNode.value = current;
+      }
+    }
+
+    function applyEnquiryFiltersAndRender() {
+      const from = filterFromDate.value ? new Date(`${filterFromDate.value}T00:00:00`) : null;
+      const to = filterToDate.value ? new Date(`${filterToDate.value}T23:59:59`) : null;
+      const source = filterSource.value.trim().toLowerCase();
+      const counsellor = filterCounsellor.value.trim().toLowerCase();
+      const search = filterSearch.value.trim().toLowerCase();
+
+      filteredRecentEnquiries = latestRecentEnquiries.filter((item) => {
+        const timestamp = parseDateValue(item.timestamp);
+        if (from && (!timestamp || timestamp < from)) return false;
+        if (to && (!timestamp || timestamp > to)) return false;
+
+        if (source && String(item.source || "").trim().toLowerCase() !== source) return false;
+        if (counsellor && String(item.assigned_to || "").trim().toLowerCase() !== counsellor) return false;
+
+        if (search) {
+          const haystack = [
+            item.name,
+            item.phone,
+            item.source,
+            item.state,
+            item.city,
+            item.status,
+            item.assigned_to,
+          ]
+            .map((value) => String(value || "").toLowerCase())
+            .join(" ");
+          if (!haystack.includes(search)) return false;
+        }
+
+        return true;
+      });
+
+      renderRecentEnquiries(filteredRecentEnquiries);
+    }
+
+    function toCsvValue(value) {
+      const text = String(value ?? "");
+      if (text.includes(",") || text.includes("\"") || text.includes("\n")) {
+        return `"${text.replaceAll("\"", "\"\"")}"`;
+      }
+      return text;
+    }
+
+    function exportRecentEnquiriesCsv() {
+      const rows = filteredRecentEnquiries.length ? filteredRecentEnquiries : latestRecentEnquiries;
+      const headers = ["timestamp", "name", "phone", "source", "region", "lead_score", "status", "counsellor"];
+      const lines = rows.map((item) => [
+        item.timestamp || "",
+        item.name || "",
+        item.phone || "",
+        item.source || "",
+        item.state || item.city || "",
+        item.lead_score || "",
+        item.status || "",
+        item.assigned_to || "",
+      ]);
+      const csv = [headers, ...lines].map((line) => line.map(toCsvValue).join(",")).join("\n");
+      const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `iist-enquiries-${new Date().toISOString().slice(0, 10)}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    }
+
+    function setupFilterHandlers() {
+      [filterFromDate, filterToDate, filterSource, filterCounsellor].forEach((node) => {
+        node.addEventListener("change", applyEnquiryFiltersAndRender);
+      });
+      filterSearch.addEventListener("input", applyEnquiryFiltersAndRender);
+      exportCsvBtn.addEventListener("click", exportRecentEnquiriesCsv);
+      clearFiltersBtn.addEventListener("click", () => {
+        filterFromDate.value = "";
+        filterToDate.value = "";
+        filterSource.value = "";
+        filterCounsellor.value = "";
+        filterSearch.value = "";
+        applyEnquiryFiltersAndRender();
+      });
+    }
+
+    function setSyncStatus(ok, text) {
+      const dot = document.getElementById("live-dot");
+      const label = document.getElementById("last-sync");
+      dot.classList.toggle("live", ok);
+      label.textContent = text;
+    }
+
+    function renderSourceRoi(rows) {
+      const list = (rows || []).slice(0, 8);
+      const html = list.map((item) => `
+        <div class="row">
+          <span>${safe(item.source || "Unknown")}</span>
+          <span class="mono">${fmtInt(item.conversions)}/${fmtInt(item.enquiries)} (${safe(item.conversion_rate_percent)}%)</span>
+        </div>
+      `).join("");
+      document.getElementById("source-roi").innerHTML = html || '<div class="hint">No source data yet</div>';
+    }
+
+    function renderRegionalHeat(rows) {
+      const list = (rows || []).slice(0, 8);
+      const max = list.reduce((best, item) => Math.max(best, Number(item.enquiries || 0)), 1);
+      const html = list.map((item) => {
+        const intensity = Math.max(8, Math.round((Number(item.enquiries || 0) / max) * 100));
+        return `
+          <div class="row">
+            <span>${safe(item.region || "Unknown")}</span>
+            <span class="heat-track"><span class="heat-fill" style="width:${intensity}%"></span></span>
+            <span class="mono">${fmtInt(item.enquiries)}</span>
+          </div>
+        `;
+      }).join("");
+      document.getElementById("regional-heat").innerHTML = html || '<div class="hint">No region data yet</div>';
+    }
+
+    function renderRecentEnquiries(rows) {
+      const list = rows || [];
+      const html = list.map((item) => `
+        <tr>
+          <td class="mono">${safe(item.timestamp || "-")}</td>
+          <td>${safe(item.name || "Unknown")}</td>
+          <td class="mono">${safe(item.phone || "-")}</td>
+          <td>${safe(item.source || "Unknown")}</td>
+          <td>${safe(item.state || item.city || "Unknown")}</td>
+          <td>${safe(item.lead_score || "-")}</td>
+          <td>${safe(item.status || "-")}</td>
+          <td>${safe(item.assigned_to || "Unassigned")}</td>
+        </tr>
+      `).join("");
+      document.getElementById("recent-enquiries").innerHTML = html || '<tr><td colspan="8">No enquiries yet</td></tr>';
+      document.getElementById("recent-count").textContent = `${list.length} rows`;
+    }
+
+    function upsertHourlyChart(trend) {
+      const ctx = document.getElementById("hourly-trend-chart");
+      if (!ctx || !trend) return;
+      const payload = {
+        labels: trend.labels || [],
+        datasets: [
+          {
+            label: "Messages",
+            data: trend.messages || [],
+            borderColor: "#1c7f58",
+            backgroundColor: "rgba(28, 127, 88, 0.18)",
+            tension: 0.3,
+          },
+          {
+            label: "Hot Leads",
+            data: trend.hot_leads || [],
+            borderColor: "#f39b2f",
+            backgroundColor: "rgba(243, 155, 47, 0.16)",
+            tension: 0.3,
+          },
+          {
+            label: "Conversions",
+            data: trend.conversions || [],
+            borderColor: "#135d40",
+            backgroundColor: "rgba(19, 93, 64, 0.16)",
+            tension: 0.3,
+          },
+        ],
+      };
+
+      if (hourlyChart) {
+        hourlyChart.data = payload;
+        hourlyChart.update();
+        return;
+      }
+
+      hourlyChart = new Chart(ctx, {
+        type: "line",
+        data: payload,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true } },
+          plugins: { legend: { position: "bottom" } },
+        },
+      });
+    }
+
+    function upsertCounsellorChart(counsellors) {
+      const ctx = document.getElementById("counsellor-chart");
+      if (!ctx) return;
+      const list = counsellors || [];
+      const payload = {
+        labels: list.map((c) => c.counsellor),
+        datasets: [
+          {
+            label: "Assigned",
+            data: list.map((c) => c.assigned),
+            backgroundColor: "rgba(28, 127, 88, 0.75)",
+          },
+          {
+            label: "Conversions",
+            data: list.map((c) => c.conversions),
+            backgroundColor: "rgba(243, 155, 47, 0.78)",
+          },
+        ],
+      };
+
+      if (counsellorChart) {
+        counsellorChart.data = payload;
+        counsellorChart.update();
+        return;
+      }
+
+      counsellorChart = new Chart(ctx, {
+        type: "bar",
+        data: payload,
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          scales: { y: { beginAtZero: true } },
+          plugins: { legend: { position: "bottom" } },
+        },
+      });
+    }
+
+    async function loadOverview() {
+      try {
+        const data = isDemoMode()
+          ? buildDemoOverview()
+          : await (async () => {
+              const response = await fetch(overviewEndpoint, { credentials: "include" });
+              if (!response.ok) {
+                throw new Error(`Request failed: ${response.status}`);
+              }
+              return response.json();
+            })();
+        const runtime = data.runtime;
+        const analytics = data.analytics || {};
+        const persistentTotals = analytics.persistent_totals || {};
+
+        document.getElementById("avg-response").textContent = `${fmtInt(runtime.avg_response_ms)} ms`;
+        document.getElementById("hot-rate").textContent = `${safe(runtime.hot_lead_rate_percent)}%`;
+        document.getElementById("esc-rate").textContent = `${safe(runtime.escalation_rate_percent)}%`;
+        document.getElementById("active-sessions").textContent = `Active Conversations: ${fmtInt(runtime.active_sessions)}`;
+        document.getElementById("uptime").textContent = `Uptime: ${formatDuration(Number(runtime.uptime_seconds || 0))}`;
+        document.getElementById("total-enquiries").textContent = fmtInt(persistentTotals.enquiries ?? 0);
+        document.getElementById("total-conversions-value").textContent = fmtInt(persistentTotals.conversions ?? 0);
+        document.getElementById("conversion-share-hint").textContent = `Hot Leads: ${fmtInt(runtime.hot_leads_total ?? 0)}`;
+        document.getElementById("enquiry-trend-hint").textContent = `Total Messages: ${fmtInt(runtime.messages_total ?? 0)}`;
+        document.getElementById("overall-conversion").textContent = `${persistentTotals.conversion_rate_percent ?? 0}%`;
+
+        upsertHourlyChart(analytics.hourly_trend_24h);
+        upsertCounsellorChart(analytics.counsellor_conversion);
+        renderSourceRoi(analytics.source_roi);
+        renderRegionalHeat(analytics.regional_heat);
+        latestRecentEnquiries = Array.isArray(analytics.recent_enquiries) ? analytics.recent_enquiries : [];
+        fillSelectOptions(filterSource, latestRecentEnquiries.map((item) => item.source), "All Sources");
+        fillSelectOptions(filterCounsellor, latestRecentEnquiries.map((item) => item.assigned_to), "All Counsellors");
+        applyEnquiryFiltersAndRender();
+
+        if (isDemoMode()) {
+          setSyncStatus(true, `Demo mode active - refreshed ${new Date().toLocaleTimeString()}`);
+        } else {
+          setSyncStatus(true, `Last synced: ${new Date().toLocaleTimeString()}`);
+        }
+      } catch (error) {
+        setSyncStatus(false, `Sync failed: ${error.message}`);
+      }
+    }
+
+    function resolveAdminLoginUrl() {
+      const saved = localStorage.getItem(ADMIN_LOGIN_URL_KEY);
+      if (saved) return saved;
+      return "http://localhost:8080/admin-login";
+    }
+
+    async function checkSession() {
+      if (isDemoMode()) {
+        authUserLabel.textContent = "demo.admin";
+        return true;
+      }
+      const res = await fetch(meEndpoint, { credentials: "include" });
+      if (!res.ok) {
+        authUserLabel.textContent = "Not signed in";
+        setSyncStatus(false, "Please login to view dashboard data");
+        return false;
+      }
+      const me = await res.json();
+      const username = me.user?.username || localStorage.getItem("iistAdminUsername") || "admin";
+      authUserLabel.textContent = username;
+      localStorage.setItem("iistAdminUsername", username);
+      return true;
+    }
+
+    openLoginBtn.addEventListener("click", () => {
+      window.location.href = resolveAdminLoginUrl();
+    });
+
+    logoutBtn.addEventListener("click", async () => {
+      if (!isDemoMode()) {
+        await fetch(logoutEndpoint, { method: "POST", credentials: "include" });
+      }
+      authUserLabel.textContent = "Not signed in";
+      latestRecentEnquiries = [];
+      filteredRecentEnquiries = [];
+      renderRecentEnquiries([]);
+      setSyncStatus(false, "Logged out");
+    });
+
+    setupTheme();
+    setupSectionObserver();
+    setupFilterHandlers();
+
+    if (isDemoMode()) {
+      authUserLabel.textContent = "demo.admin";
+      openLoginBtn.style.display = "none";
+    }
+
+    const remembered = localStorage.getItem("iistAdminUsername");
+    if (remembered) {
+      authUserLabel.textContent = remembered;
+    }
+    checkSession().then((ok) => {
+      if (ok) {
+        loadOverview();
+      }
+    });
+    setInterval(async () => {
+      const ok = await checkSession();
+      if (ok) {
+        loadOverview();
+      }
+    }, 15000);
+  </script>
+</body>
+</html>

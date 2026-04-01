@@ -1,16 +1,4 @@
-"""
-Multi-provider AI client for IIST AdmitBot.
-Supports Groq (free), OpenAI, Google Gemini, and a rule-based fallback.
-
-Priority order when AI_PROVIDER=auto (default):
-  Groq → OpenAI → Gemini → rule-based keyword fallback
-
-Configure via .env:
-  AI_PROVIDER=auto|groq|openai|gemini
-  GROQ_API_KEY=gsk_...        (free at console.groq.com)
-  OPENAI_API_KEY=sk-...
-  GEMINI_API_KEY=...
-"""
+"""Groq-first AI client for IIST AdmitBot with rule-based fallback."""
 
 import json
 import logging
@@ -22,8 +10,6 @@ import httpx
 from backend.config import settings
 
 logger = logging.getLogger(__name__)
-
-GEMINI_API_BASE = "https://generativelanguage.googleapis.com/v1beta/models"
 
 
 # ---------------------------------------------------------------------------
@@ -74,6 +60,13 @@ def _parse_structured_output(raw: str) -> AIResponse:
             logger.warning("Failed to parse AI JSON block: %s", json_str[:200])
         reply_text = raw[: json_match.start()].strip()
 
+    if not reply_text:
+        # Guard against providers returning only metadata JSON without human text.
+        reply_text = (
+            "Thanks for your question. I can help with courses, fees, eligibility, "
+            "scholarships, hostel, and admissions process."
+        )
+
     return AIResponse(
         reply_text=reply_text,
         intent_score=structured.get("intent_score"),
@@ -84,29 +77,30 @@ def _parse_structured_output(raw: str) -> AIResponse:
 
 
 # ---------------------------------------------------------------------------
-# Provider: OpenAI-compatible (Groq + OpenAI use same format)
+# Provider: Groq
 # ---------------------------------------------------------------------------
 
-async def _call_openai_compat(
-    base_url: str,
-    api_key: str,
-    model: str,
+async def _call_groq(
     prompt: str,
     timeout: float,
 ) -> AIResponse:
-    """Call any OpenAI-compatible chat completions endpoint."""
+    """Call Groq chat completions endpoint."""
     headers = {
-        "Authorization": f"Bearer {api_key}",
+        "Authorization": f"Bearer {settings.groq_api_key}",
         "Content-Type": "application/json",
     }
     payload: Dict[str, Any] = {
-        "model": model,
+        "model": "llama-3.3-70b-versatile",
         "messages": [{"role": "user", "content": prompt}],
         "temperature": 0.7,
         "max_tokens": 512,
     }
     async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(base_url, headers=headers, json=payload)
+        response = await client.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+        )
         response.raise_for_status()
         data = response.json()
 
@@ -117,44 +111,6 @@ async def _call_openai_compat(
     )
     if not raw_text:
         raise ValueError("Empty response from AI provider")
-    return _parse_structured_output(raw_text)
-
-
-# ---------------------------------------------------------------------------
-# Provider: Google Gemini
-# ---------------------------------------------------------------------------
-
-async def _call_gemini(prompt: str, timeout: float) -> AIResponse:
-    """Call Google Gemini API."""
-    url = f"{GEMINI_API_BASE}/{settings.gemini_model}:generateContent"
-    params = {"key": settings.gemini_api_key}
-    payload: Dict[str, Any] = {
-        "contents": [{"parts": [{"text": prompt}]}],
-        "generationConfig": {
-            "temperature": 0.7,
-            "maxOutputTokens": 512,
-            "topP": 0.9,
-        },
-        "safetySettings": [
-            {
-                "category": "HARM_CATEGORY_HARASSMENT",
-                "threshold": "BLOCK_MEDIUM_AND_ABOVE",
-            }
-        ],
-    }
-    async with httpx.AsyncClient(timeout=timeout) as client:
-        response = await client.post(url, params=params, json=payload)
-        response.raise_for_status()
-        data = response.json()
-
-    raw_text: str = (
-        data.get("candidates", [{}])[0]
-        .get("content", {})
-        .get("parts", [{}])[0]
-        .get("text", "")
-    )
-    if not raw_text:
-        raise ValueError("Empty response from Gemini API")
     return _parse_structured_output(raw_text)
 
 
@@ -172,6 +128,8 @@ _RULE_PATTERNS: List[tuple[str, str]] = [
     (r"\bmba\b", "mba"),
     (r"\bhostel\b", "hostel"),
     (r"scholarship|waiver|concession", "scholarship"),
+    (r"admission\s*timings?|office\s*timings?|working\s*hours?|open\s*time|close\s*time", "admission_timing"),
+    (r"visit|campus\s*tour|college\s*tour|college\s*visit|campus\s*visit", "campus_visit"),
     (r"fee[s]?|kitna|amount|cost|charges", "fees"),
     (r"placement|package|lpa|salary|recruiter", "placement"),
     (r"eligib|percentile|jee|12th|marks", "eligibility"),
@@ -230,6 +188,18 @@ _RULE_RESPONSES: Dict[str, str] = {
         "• SC/ST: Government scholarship + 10% institutional concession\n"
         "• Girl Child: 10% fee waiver for female students\n"
         "• Sports: Up to 20% off for state/national level athletes"
+    ),
+    "admission_timing": (
+        "IIST Admissions Office Timings 🕘\n"
+        "Monday to Saturday: 10:00 AM - 5:00 PM\n"
+        "You can submit forms online anytime at iist.ac.in/apply\n"
+        "For same-day support, call 1800-103-3069."
+    ),
+    "campus_visit": (
+        "Campus visit is possible ✅\n"
+        "Best hours: 10:00 AM - 4:00 PM (Mon-Sat)\n"
+        "Share your preferred day and branch; our team will schedule a guided visit.\n"
+        "Call 1800-103-3069 for quick slot confirmation."
     ),
     "fees": (
         "IIST Annual Fees 💰\n"
@@ -314,66 +284,55 @@ def _rule_based_response(message: str) -> AIResponse:
     )
 
 
+def generate_faq_fallback_response(message: str) -> AIResponse:
+    """Public wrapper for deterministic FAQ response generation."""
+    return _rule_based_response(message)
+
+
+def _extract_student_message_from_prompt(prompt: str) -> str:
+    """Extract only the user message from the full system prompt template."""
+    # Preferred path: capture text between "Student message:" and trailing instructions.
+    match = re.search(
+        r"Student message:\s*(.*?)\n\s*Respond naturally in the student's language",
+        prompt,
+        re.DOTALL,
+    )
+    if match:
+        return match.group(1).strip()
+
+    # Fallback path for unexpected template changes.
+    if "Student message:" in prompt:
+        tail = prompt.split("Student message:", 1)[-1].strip()
+        return tail.splitlines()[0].strip()
+
+    return prompt.strip()
+
+
 # ---------------------------------------------------------------------------
 # Main entry point
 # ---------------------------------------------------------------------------
 
 async def generate_response(
     prompt: str,
-    timeout: float = 30.0,
+    timeout: float = 10.0,
 ) -> AIResponse:
     """
-    Generate a response using the configured AI provider.
-
-    Provider resolution when AI_PROVIDER=auto (default):
-      1. Groq (if GROQ_API_KEY set)
-      2. OpenAI (if OPENAI_API_KEY set)
-      3. Gemini (if GEMINI_API_KEY set)
-      4. Rule-based fallback (always available)
+    Generate a response using Groq. If unavailable, use rule-based fallback.
     """
     provider = settings.ai_provider.lower()
 
-    if provider == "groq":
-        candidates = ["groq"]
-    elif provider == "openai":
-        candidates = ["openai"]
-    elif provider == "gemini":
-        candidates = ["gemini"]
-    else:  # "auto"
-        candidates = ["groq", "openai", "gemini"]
+    if provider not in {"groq", "auto"}:
+        logger.warning("AI_PROVIDER '%s' is not supported; enforcing Groq-only mode", provider)
 
-    for p in candidates:
+    if settings.groq_api_key:
         try:
-            if p == "groq" and settings.groq_api_key:
-                logger.debug("Using Groq AI provider")
-                return await _call_openai_compat(
-                    "https://api.groq.com/openai/v1/chat/completions",
-                    settings.groq_api_key,
-                    "llama-3.3-70b-versatile",
-                    prompt,
-                    timeout,
-                )
-            elif p == "openai" and settings.openai_api_key:
-                logger.debug("Using OpenAI provider")
-                return await _call_openai_compat(
-                    "https://api.openai.com/v1/chat/completions",
-                    settings.openai_api_key,
-                    "gpt-4o-mini",
-                    prompt,
-                    timeout,
-                )
-            elif p == "gemini" and settings.gemini_api_key:
-                logger.debug("Using Gemini provider")
-                return await _call_gemini(prompt, timeout)
+            logger.debug("Using Groq AI provider")
+            return await _call_groq(prompt, timeout)
         except Exception as exc:
-            logger.warning("AI provider '%s' failed: %s — trying next", p, exc)
-            continue
+            logger.warning("Groq provider failed: %s — using rule-based fallback", exc)
 
-    # Extract the student message from the full prompt for keyword matching
-    if "Student message:" in prompt:
-        student_message = prompt.split("Student message:")[-1].strip()
-    else:
-        student_message = prompt
+    # Extract only student text from the full prompt for fallback keyword matching.
+    student_message = _extract_student_message_from_prompt(prompt)
 
     logger.info("No AI provider available — using rule-based fallback")
     return _rule_based_response(student_message)

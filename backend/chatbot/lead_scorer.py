@@ -70,12 +70,12 @@ def score_lead(
     Score a lead based on message content and extracted data signals.
 
     Priority:
-    1. If Gemini AI provides a score, trust it (it has full conversation context)
+    1. If AI provides a score, trust it (it has full conversation context)
     2. Otherwise, use rule-based scoring
 
     Args:
         message: The student's message text
-        ai_score: Optional score string from Gemini AI ('Hot', 'Warm', 'Cold')
+        ai_score: Optional score string from AI ('Hot', 'Warm', 'Cold')
         has_phone: Whether a phone number was extracted
         has_name: Whether a name was extracted
         has_score: Whether a JEE/12th score was extracted
